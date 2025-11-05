@@ -3,13 +3,9 @@ import { useGameStore } from "@/store/gameStore";
 import { motion } from "framer-motion";
 import {
     LuTrophy as Trophy,
-    LuArrowUp as ArrowUp,
-    LuArrowDown as ArrowDown,
-    LuMinus as Minus,
     LuCrown as Crown,
     LuStar as Star,
-    LuGem as Gem,
-    LuUser as User,
+    LuUsers as Users,
 } from "react-icons/lu";
 
 export function Leaderboard() {
@@ -56,7 +52,10 @@ export function Leaderboard() {
     }, []);
 
     const currentLeaderboard =
-        activeTab === "global" ? globalLeaderboard : guildLeaderboard;
+        activeTab === "global" ? globalLeaderboard : [];
+
+    const guildLeaderboardData =
+        activeTab === "guild" ? guildLeaderboard : [];
 
     const getRankIcon = (rank: number) => {
         switch (rank) {
@@ -71,39 +70,12 @@ export function Leaderboard() {
         }
     };
 
-    const getRankChangeIcon = (change: number) => {
-        if (change > 0) return <ArrowUp className="text-success" size={16} />;
-        if (change < 0) return <ArrowDown className="text-danger" size={16} />;
-        return <Minus className="text-white" size={16} />;
+    const formatPoints = (points: number) => {
+        return points.toLocaleString() + " PTS";
     };
 
-    const getAvatarBadge = (avatar: string) => {
-        switch (avatar) {
-            case "KING":
-                return (
-                    <div className="w-10 h-10 bg-accent border-2 border-accent flex items-center justify-center">
-                        <Crown className="text-black" size={20} />
-                    </div>
-                );
-            case "DIAMOND":
-                return (
-                    <div className="w-10 h-10 bg-primary border-2 border-primary flex items-center justify-center">
-                        <Gem className="text-black" size={20} />
-                    </div>
-                );
-            case "USER":
-                return (
-                    <div className="w-10 h-10 bg-card border-2 border-primary flex items-center justify-center">
-                        <User className="text-primary" size={20} />
-                    </div>
-                );
-            default:
-                return (
-                    <div className="w-10 h-10 bg-card border-2 border-primary flex items-center justify-center">
-                        <User className="text-primary" size={20} />
-                    </div>
-                );
-        }
+    const formatWinRate = (rate: number) => {
+        return `${rate.toFixed(1)}%`;
     };
 
     return (
@@ -115,7 +87,7 @@ export function Leaderboard() {
                         LEADERBOARD
                     </h1>
                     <p className="font-mono-brutal text-white">
-                        COMPETE WITH THE BEST TRADERS
+                        TOP TRADERS BY TOTAL PROFIT
                     </p>
                 </div>
 
@@ -165,96 +137,148 @@ export function Leaderboard() {
                     </button>
                 </div>
 
-                {/* Leaderboard */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="card-brutal overflow-hidden"
-                >
-                    {currentLeaderboard.length > 0 ? (
-                        <div className="divide-y divide-white">
-                            {currentLeaderboard.map((entry, index) => (
-                                <motion.div
-                                    key={entry.id}
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    className={`p-4 flex items-center gap-4 border ${
-                                        entry.isCurrentUser
-                                            ? "bg-card border-accent border-2"
-                                            : "bg-card border hover:border-primary"
-                                    }`}
-                                >
-                                    {/* Rank */}
-                                    <div className="shrink-0 w-8 text-center">
-                                        {getRankIcon(index + 1)}
-                                    </div>
+                {/* Global Leaderboard */}
+                {activeTab === "global" && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="card-brutal overflow-hidden"
+                    >
+                        {currentLeaderboard.length > 0 ? (
+                            <div className="divide-y divide-white">
+                                {currentLeaderboard.map((entry, index) => (
+                                    <motion.div
+                                        key={entry.playerId}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        className={`p-4 flex items-center gap-4 border ${
+                                            entry.isCurrentUser
+                                                ? "bg-card border-accent border-2"
+                                                : "bg-card border hover:border-primary"
+                                        }`}
+                                    >
+                                        {/* Rank */}
+                                        <div className="shrink-0 w-8 text-center">
+                                            {getRankIcon(entry.rank)}
+                                        </div>
 
-                                    {/* Avatar & Username */}
-                                    <div className="flex items-center gap-3 flex-1">
-                                        {getAvatarBadge(entry.avatar)}
-                                        <div>
-                                            <h3 className="font-brutal flex items-center gap-2">
-                                                {entry.username}
-                                                {entry.isCurrentUser && (
-                                                    <span className="text-xs bg-accent text-background px-2 py-1 font-brutal">
-                                                        YOU
-                                                    </span>
-                                                )}
-                                            </h3>
-                                            <p className="text-sm font-mono-brutal">
-                                                {activeTab === "guild"
-                                                    ? "GUILD MEMBER"
-                                                    : "GLOBAL TRADER"}
+                                        {/* Player Info */}
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <div className="w-10 h-10 bg-card border-2 border-primary flex items-center justify-center">
+                                                <span className="font-brutal text-primary">
+                                                    {entry.displayName[0].toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-brutal flex items-center gap-2">
+                                                    {entry.displayName}
+                                                    {entry.isCurrentUser && (
+                                                        <span className="text-xs bg-accent text-background px-2 py-1 font-brutal">
+                                                            YOU
+                                                        </span>
+                                                    )}
+                                                </h3>
+                                                <p className="text-sm font-mono-brutal">
+                                                    Level {entry.level} • Win Rate:{" "}
+                                                    {formatWinRate(entry.winRate)}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Total Earned (as per contract ranking) */}
+                                        <div className="text-right">
+                                            <p className="font-brutal text-lg text-primary">
+                                                {formatPoints(entry.totalProfit)}
+                                            </p>
+                                            <p className="text-xs font-mono-brutal text-white">
+                                                TOTAL EARNED
+                                            </p>
+                                            <p className="text-xs font-mono-brutal text-white mt-1">
+                                                (Ranked by total earned)
                                             </p>
                                         </div>
-                                    </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-white">
+                                <Trophy size={48} className="mx-auto mb-4" />
+                                <h3 className="text-lg font-brutal mb-2 text-primary">
+                                    NO DATA AVAILABLE
+                                </h3>
+                                <p className="font-mono-brutal">
+                                    LEADERBOARD DATA WILL APPEAR HERE
+                                </p>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
 
-                                    {/* Portfolio Value */}
-                                    <div className="text-right">
-                                        <p className="font-brutal text-lg">
-                                            $
-                                            {entry.portfolioValue.toLocaleString()}
-                                        </p>
-                                        <div
-                                            className={`flex items-center gap-1 text-sm font-brutal ${
-                                                entry.profitPercent >= 0
-                                                    ? "text-success"
-                                                    : "text-danger"
-                                            }`}
-                                        >
-                                            {entry.profitPercent >= 0
-                                                ? "+"
-                                                : ""}
-                                            {entry.profitPercent.toFixed(2)}%
+                {/* Guild Leaderboard */}
+                {activeTab === "guild" && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="card-brutal overflow-hidden"
+                    >
+                        {guildLeaderboardData.length > 0 ? (
+                            <div className="divide-y divide-white">
+                                {guildLeaderboardData.map((entry, index) => (
+                                    <motion.div
+                                        key={entry.guildId}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.1 }}
+                                        className="p-4 flex items-center gap-4 border bg-card border hover:border-primary"
+                                    >
+                                        {/* Rank */}
+                                        <div className="shrink-0 w-8 text-center">
+                                            {getRankIcon(entry.rank)}
                                         </div>
-                                    </div>
 
-                                    {/* Rank Change */}
-                                    <div className="flex items-center gap-1 text-sm font-mono-brutal">
-                                        {getRankChangeIcon(entry.rankChange)}
-                                        <span>
-                                            {Math.abs(entry.rankChange)}
-                                        </span>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12 text-white">
-                            <Trophy size={48} className="mx-auto mb-4" />
-                            <h3 className="text-lg font-brutal mb-2 text-primary">
-                                NO DATA AVAILABLE
-                            </h3>
-                            <p className="font-mono-brutal">
-                                {activeTab === "guild"
-                                    ? "JOIN A GUILD TO SEE THE GUILD LEADERBOARD"
-                                    : "LEADERBOARD DATA WILL APPEAR HERE"}
-                            </p>
-                        </div>
-                    )}
-                </motion.div>
+                                        {/* Guild Info */}
+                                        <div className="flex items-center gap-3 flex-1">
+                                            <div className="w-10 h-10 bg-primary border-2 border-primary flex items-center justify-center">
+                                                <Users className="text-black" size={20} />
+                                            </div>
+                                            <div>
+                                                <h3 className="font-brutal text-primary">
+                                                    {entry.name}
+                                                </h3>
+                                                <p className="text-sm font-mono-brutal text-white">
+                                                    {entry.memberCount} MEMBERS
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Total Guild Profit */}
+                                        <div className="text-right">
+                                            <p className="font-brutal text-lg text-primary">
+                                                {formatPoints(entry.totalGuildProfit)}
+                                            </p>
+                                            <p className="text-xs font-mono-brutal text-white">
+                                                GUILD PROFIT
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-white">
+                                <Users size={48} className="mx-auto mb-4" />
+                                <h3 className="text-lg font-brutal mb-2 text-primary">
+                                    NO GUILD DATA
+                                </h3>
+                                <p className="font-mono-brutal">
+                                    JOIN A GUILD TO SEE THE GUILD LEADERBOARD
+                                </p>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
 
                 {/* Stats */}
                 <motion.div
@@ -267,7 +291,12 @@ export function Leaderboard() {
                         <h4 className="text-sm font-mono-brutal text-white mb-1">
                             YOUR RANK
                         </h4>
-                        <p className="text-2xl font-brutal text-primary">#3</p>
+                        <p className="text-2xl font-brutal text-primary">
+                            #
+                            {globalLeaderboard.findIndex(
+                                (e) => e.isCurrentUser
+                            ) + 1 || "?"}
+                        </p>
                     </div>
 
                     <div className="card-brutal">

@@ -1,89 +1,115 @@
 import { useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { motion } from "framer-motion";
-import { LuArrowUp as ArrowUp, LuArrowDown as ArrowDown } from "react-icons/lu";
+import {
+    LuPlus as Plus,
+    LuTrendingUp as TrendingUp,
+} from "react-icons/lu";
 import { BuySellModal } from "@/components/BuySellModal";
 
-type SortOption = "all" | "gainers" | "losers";
+type SortOption = "all" | "active" | "newest";
 
 export function Markets() {
-    const { assets } = useGameStore();
+    const { markets, player, createMarket } = useGameStore();
     const [sortBy, setSortBy] = useState<SortOption>("all");
-    const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+    const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newMarketTitle, setNewMarketTitle] = useState("");
+    const [newMarketAmount, setNewMarketAmount] = useState("");
+    const [newMarketFee, setNewMarketFee] = useState("");
 
-    const sortedAssets = assets.filter((asset) => {
-        switch (sortBy) {
-            case "gainers":
-                return asset.change24h > 0;
-            case "losers":
-                return asset.change24h < 0;
-            default:
-                return true;
-        }
+    // Filter markets by status
+    const filteredMarkets = markets.filter((market) => {
+        if (sortBy === "active") return market.status === "Active";
+        if (sortBy === "newest")
+            return market.creationTime > Date.now() - 7 * 24 * 60 * 60 * 1000;
+        return true;
     });
 
-    const formatPrice = (price: number) => {
-        if (price < 1) {
-            return `$${price.toFixed(4)}`;
+    // Check if player can create market (Level 5+ and 10,000+ points)
+    const canCreateMarket = player.level >= 5 && player.tokenBalance >= 10000;
+
+    const handleCreateMarket = () => {
+        const amount = parseFloat(newMarketAmount);
+        const feePercent = parseFloat(newMarketFee);
+
+        if (
+            !newMarketTitle.trim() ||
+            isNaN(amount) ||
+            amount <= 0 ||
+            isNaN(feePercent) ||
+            feePercent < 0 ||
+            feePercent > 100
+        ) {
+            return;
         }
-        return `$${price.toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-        })}`;
+
+        if (!canCreateMarket) {
+            return;
+        }
+
+        createMarket(newMarketTitle, amount, feePercent);
+        setShowCreateModal(false);
+        setNewMarketTitle("");
+        setNewMarketAmount("");
+        setNewMarketFee("");
     };
 
-    const formatChange = (change: number) => {
-        const sign = change >= 0 ? "+" : "";
-        return `${sign}${change.toFixed(2)}%`;
+    const formatPoints = (points: number) => {
+        return points.toLocaleString() + " PTS";
+    };
+
+    const formatFee = (fee: number) => {
+        return `${fee}%`;
     };
 
     return (
         <div className="min-h-screen bg-black text-white p-4 pb-20 lg:pb-4">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-2xl font-brutal text-primary mb-2">
-                        MARKETS
-                    </h1>
-                    <p className="font-mono-brutal text-white">
-                        TRADE CRYPTO ASSETS AND BUILD YOUR PORTFOLIO
-                    </p>
+                <div className="mb-6 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-brutal text-primary mb-2">
+                            POINT TRADING MARKETS
+                        </h1>
+                        <p className="font-mono-brutal text-white">
+                            BUY AND SELL POINTS WITH OTHER PLAYERS
+                        </p>
+                    </div>
+                    {canCreateMarket && (
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 btn-brutal"
+                        >
+                            <Plus size={16} />
+                            CREATE MARKET
+                        </button>
+                    )}
                 </div>
 
-                {/* Ticker */}
-                <div className="mb-6 overflow-hidden">
-                    <div className="flex animate-scroll whitespace-nowrap">
-                        {assets.map((asset, index) => (
-                            <div
-                                key={index}
-                                className="flex items-center gap-2 mr-8 text-sm"
-                            >
-                                <span className="text-lg">{asset.logo}</span>
-                                <span className="font-medium">
-                                    {asset.symbol}
-                                </span>
-                                <span className="text-gray-400">
-                                    {formatPrice(asset.price)}
-                                </span>
-                                <span
-                                    className={
-                                        asset.change24h >= 0
-                                            ? "text-green-500"
-                                            : "text-red-500"
-                                    }
-                                >
-                                    {formatChange(asset.change24h)}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                {/* Requirements Info */}
+                {!canCreateMarket && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="card-brutal mb-6 border-accent"
+                    >
+                        <p className="font-mono-brutal text-white">
+                            <span className="text-accent font-brutal">
+                                MARKET CREATION REQUIREMENTS:
+                            </span>{" "}
+                            Level 5+ and 10,000+ points required. You are currently Level{" "}
+                            {player.level} with {formatPoints(player.tokenBalance)}.
+                        </p>
+                    </motion.div>
+                )}
 
                 {/* Sort Options */}
                 <div className="flex gap-2 mb-6">
                     {[
-                        { key: "all", label: "ALL" },
-                        { key: "gainers", label: "TOP GAINERS" },
-                        { key: "losers", label: "TOP LOSERS" },
+                        { key: "all", label: "ALL MARKETS" },
+                        { key: "active", label: "ACTIVE" },
+                        { key: "newest", label: "NEWEST" },
                     ].map((option) => (
                         <button
                             key={option.key}
@@ -99,87 +125,274 @@ export function Markets() {
                     ))}
                 </div>
 
-                {/* Asset Cards */}
-                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                    {sortedAssets.map((asset, index) => (
+                {/* Market Cards */}
+                {filteredMarkets.length > 0 ? (
+                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                        {filteredMarkets.map((market, index) => {
+                            const liquidityPercent =
+                                (market.totalLiquidity / market.amount) * 100;
+                            const playerPosition = market.positions[player.id] || 0;
+
+                            return (
+                                <motion.div
+                                    key={market.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                    className={`card-brutal cursor-pointer transition-none ${
+                                        selectedMarket === market.id
+                                            ? "border-accent border-2"
+                                            : "border hover:border-primary"
+                                    }`}
+                                    onClick={() => setSelectedMarket(market.id)}
+                                >
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex-1">
+                                            <h3 className="font-brutal text-primary mb-1">
+                                                {market.title}
+                                            </h3>
+                                            <p className="text-xs font-mono-brutal text-white">
+                                                Creator: {market.creator.slice(0, 8)}...
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span
+                                                className={`text-xs font-brutal px-2 py-1 border ${
+                                                    market.status === "Active"
+                                                        ? "bg-success/20 border-success text-success"
+                                                        : "bg-gray-600 border-gray-600 text-gray-400"
+                                                }`}
+                                            >
+                                                {market.status}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3 mb-4">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-mono-brutal text-white">
+                                                TOTAL LIQUIDITY
+                                            </span>
+                                            <span className="font-brutal text-primary">
+                                                {formatPoints(market.totalLiquidity)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-mono-brutal text-white">
+                                                FEE PERCENTAGE
+                                            </span>
+                                            <span className="font-brutal text-accent">
+                                                {formatFee(market.feePercent)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-mono-brutal text-white">
+                                                PARTICIPANTS
+                                            </span>
+                                            <span className="font-brutal text-white">
+                                                {market.totalParticipants}
+                                            </span>
+                                        </div>
+
+                                        {/* Liquidity Bar */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-xs font-mono-brutal text-white">
+                                                    LIQUIDITY
+                                                </span>
+                                                <span className="text-xs font-mono-brutal text-white">
+                                                    {liquidityPercent.toFixed(1)}%
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-black border h-2">
+                                                <div
+                                                    className="bg-primary h-full border border-primary"
+                                                    style={{
+                                                        width: `${liquidityPercent}%`,
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {playerPosition > 0 && (
+                                            <div className="bg-primary/20 border border-primary p-2">
+                                                <p className="text-xs font-mono-brutal text-white">
+                                                    YOUR POSITION
+                                                </p>
+                                                <p className="font-brutal text-primary">
+                                                    {formatPoints(playerPosition)}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedMarket(market.id);
+                                            }}
+                                            className="flex-1 btn-brutal"
+                                            disabled={market.status !== "Active"}
+                                        >
+                                            BUY POINTS
+                                        </button>
+                                        {player.level >= 5 && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedMarket(market.id);
+                                                }}
+                                                className="flex-1 btn-danger font-brutal py-2 px-4"
+                                                disabled={
+                                                    market.status !== "Active" ||
+                                                    playerPosition === 0
+                                                }
+                                            >
+                                                SELL POINTS
+                                            </button>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="card-brutal text-center py-12">
+                        <TrendingUp size={48} className="mx-auto mb-4 text-primary" />
+                        <h3 className="text-lg font-brutal mb-2 text-primary">
+                            NO MARKETS FOUND
+                        </h3>
+                        <p className="font-mono-brutal text-white">
+                            {canCreateMarket
+                                ? "CREATE THE FIRST MARKET TO GET STARTED"
+                                : "MARKETS WILL APPEAR HERE WHEN CREATED"}
+                        </p>
+                    </div>
+                )}
+
+                {/* Buy/Sell Modal */}
+                {selectedMarket && (
+                    <BuySellModal
+                        market={markets.find((m) => m.id === selectedMarket)!}
+                        onClose={() => setSelectedMarket(null)}
+                    />
+                )}
+
+                {/* Create Market Modal */}
+                {showCreateModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+                        onClick={() => setShowCreateModal(false)}
+                    >
                         <motion.div
-                            key={asset.symbol}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            className={`card-brutal cursor-pointer transition-none ${
-                                selectedAsset === asset.symbol
-                                    ? "border-accent border-2"
-                                    : "border hover:border-primary"
-                            }`}
-                            onClick={() => setSelectedAsset(asset.symbol)}
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            className="card-brutal w-full max-w-md"
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-primary border flex items-center justify-center text-lg font-brutal text-background">
-                                        {asset.logo}
-                                    </div>
-                                    <div>
-                                        <h3 className="font-brutal text-text">
-                                            {asset.name}
-                                        </h3>
-                                        <p className="text-sm font-mono-brutal text-text-body">
-                                            {asset.symbol}
-                                        </p>
-                                    </div>
+                            <h3 className="text-lg font-brutal text-primary mb-4">
+                                CREATE NEW MARKET
+                            </h3>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-brutal text-white mb-2">
+                                        MARKET TITLE
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={newMarketTitle}
+                                        onChange={(e) =>
+                                            setNewMarketTitle(e.target.value)
+                                        }
+                                        placeholder="ENTER MARKET TITLE"
+                                        className="w-full bg-black border-brutal px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary font-mono-brutal"
+                                    />
                                 </div>
 
-                                <div className="text-right">
-                                    <p className="font-brutal text-lg text-white">
-                                        {formatPrice(asset.price)}
+                                <div>
+                                    <label className="block text-sm font-brutal text-white mb-2">
+                                        AMOUNT (POINTS)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={newMarketAmount}
+                                        onChange={(e) =>
+                                            setNewMarketAmount(e.target.value)
+                                        }
+                                        placeholder="10000"
+                                        min="1000"
+                                        step="100"
+                                        className="w-full bg-black border-brutal px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary font-mono-brutal"
+                                    />
+                                    <p className="text-xs font-mono-brutal text-white mt-1">
+                                        Minimum: 1,000 points. Creation cost: 100 points.
                                     </p>
-                                    <div
-                                        className={`flex items-center gap-1 text-sm font-brutal ${
-                                            asset.change24h >= 0
-                                                ? "text-success"
-                                                : "text-danger"
-                                        }`}
-                                    >
-                                        {asset.change24h >= 0 ? (
-                                            <ArrowUp size={14} />
-                                        ) : (
-                                            <ArrowDown size={14} />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-brutal text-white mb-2">
+                                        FEE PERCENTAGE (0-100)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={newMarketFee}
+                                        onChange={(e) =>
+                                            setNewMarketFee(e.target.value)
+                                        }
+                                        placeholder="10"
+                                        min="0"
+                                        max="100"
+                                        step="1"
+                                        className="w-full bg-black border-brutal px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary font-mono-brutal"
+                                    />
+                                    <p className="text-xs font-mono-brutal text-white mt-1">
+                                        You receive 98% of fees, platform gets 2%.
+                                    </p>
+                                </div>
+
+                                <div className="bg-black border p-3">
+                                    <p className="text-xs font-mono-brutal text-white mb-2">
+                                        TOTAL COST:
+                                    </p>
+                                    <p className="font-brutal text-primary">
+                                        {formatPoints(
+                                            (parseFloat(newMarketAmount) || 0) + 100
                                         )}
-                                        {formatChange(asset.change24h)}
-                                    </div>
+                                    </p>
+                                    <p className="text-xs font-mono-brutal text-white mt-2">
+                                        Your balance: {formatPoints(player.tokenBalance)}
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-3 mt-6">
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedAsset(asset.symbol);
-                                    }}
-                                    className="flex-1 btn-brutal"
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex-1 py-3 px-4 bg-black text-white border-brutal font-brutal hover:bg-white hover:text-black transition-none"
                                 >
-                                    BUY
+                                    CANCEL
                                 </button>
                                 <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedAsset(asset.symbol);
-                                    }}
-                                    className="flex-1 btn-danger font-brutal py-2 px-4"
+                                    onClick={handleCreateMarket}
+                                    disabled={
+                                        !canCreateMarket ||
+                                        !newMarketTitle.trim() ||
+                                        !newMarketAmount ||
+                                        parseFloat(newMarketAmount) < 1000 ||
+                                        parseFloat(newMarketAmount) + 100 >
+                                            player.tokenBalance
+                                    }
+                                    className="flex-1 py-3 px-4 btn-brutal disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    SELL
+                                    CREATE MARKET
                                 </button>
                             </div>
                         </motion.div>
-                    ))}
-                </div>
-
-                {/* Buy/Sell Modal */}
-                {selectedAsset && (
-                    <BuySellModal
-                        asset={assets.find((a) => a.symbol === selectedAsset)!}
-                        onClose={() => setSelectedAsset(null)}
-                    />
+                    </motion.div>
                 )}
             </div>
         </div>

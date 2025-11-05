@@ -3,8 +3,9 @@ import { motion } from "framer-motion";
 import {
     LuTrendingUp as TrendingUp,
     LuTrendingDown as TrendingDown,
-    LuArrowUp as ArrowUp,
-    LuArrowDown as ArrowDown,
+    LuCheck as CheckCircle,
+    LuX as XCircle,
+    LuClock as Clock,
 } from "react-icons/lu";
 import {
     LineChart,
@@ -17,32 +18,75 @@ import {
 } from "recharts";
 
 export function Portfolio() {
-    const { portfolio, portfolioValue, totalProfit, totalProfitPercent } =
-        useGameStore();
+    const { player, markets, predictions } = useGameStore();
 
-    // Mock data for portfolio growth chart
+    // Calculate total profit
+    const totalProfitCalculated = player.totalEarned - player.totalSpent;
+
+    // Get player's market positions
+    const marketPositions = markets
+        .map((market) => {
+            const position = market.positions[player.id] || 0;
+            if (position === 0) return null;
+            return {
+                market,
+                position,
+            };
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null);
+
+    // Get resolved and active predictions
+    const resolvedPredictions = predictions.filter((p) => p.resolved);
+    const activePredictions = predictions.filter((p) => !p.resolved);
+
+    // Mock data for portfolio growth chart (based on total profit over time)
     const chartData = [
-        { day: "Mon", value: 100000 },
-        { day: "Tue", value: 102500 },
-        { day: "Wed", value: 98000 },
-        { day: "Thu", value: 105000 },
-        { day: "Fri", value: 108000 },
-        { day: "Sat", value: 110000 },
-        { day: "Sun", value: portfolioValue },
+        { day: "Mon", value: 0 },
+        { day: "Tue", value: 5000 },
+        { day: "Wed", value: 3000 },
+        { day: "Thu", value: 8000 },
+        { day: "Fri", value: 12000 },
+        { day: "Sat", value: 15000 },
+        { day: "Sun", value: totalProfitCalculated },
     ];
 
-    const formatPrice = (price: number) => {
-        if (price < 1) {
-            return `$${price.toFixed(4)}`;
-        }
-        return `$${price.toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-        })}`;
+    const formatPoints = (points: number) => {
+        return points.toLocaleString() + " PTS";
     };
 
-    const formatChange = (change: number) => {
-        const sign = change >= 0 ? "+" : "";
-        return `${sign}${change.toFixed(2)}%`;
+    const getPredictionReward = (period: string) => {
+        switch (period) {
+            case "Daily":
+                return 100;
+            case "Weekly":
+                return 500;
+            case "Monthly":
+                return 1000;
+            default:
+                return 0;
+        }
+    };
+
+    const getPredictionStatus = (prediction: typeof predictions[0]) => {
+        if (!prediction.resolved) {
+            return {
+                icon: <Clock className="text-accent" size={16} />,
+                text: "PENDING",
+                color: "text-accent",
+            };
+        }
+        if (prediction.correct) {
+            return {
+                icon: <CheckCircle className="text-success" size={16} />,
+                text: "CORRECT",
+                color: "text-success",
+            };
+        }
+        return {
+            icon: <XCircle className="text-danger" size={16} />,
+            text: "WRONG",
+            color: "text-danger",
+        };
     };
 
     return (
@@ -54,7 +98,7 @@ export function Portfolio() {
                         PORTFOLIO
                     </h1>
                     <p className="font-mono-brutal text-white">
-                        TRACK YOUR INVESTMENTS AND PERFORMANCE
+                        TRACK YOUR MARKET POSITIONS AND PREDICTIONS
                     </p>
                 </div>
 
@@ -67,36 +111,56 @@ export function Portfolio() {
                     >
                         <div className="text-center lg:text-left">
                             <h2 className="text-3xl font-brutal text-primary mb-2">
-                                ${portfolioValue.toLocaleString()}
+                                {totalProfitCalculated >= 0 ? "+" : ""}
+                                {totalProfitCalculated.toLocaleString()} PTS
                             </h2>
                             <p className="font-mono-brutal text-white mb-4">
-                                TOTAL PORTFOLIO VALUE
+                                TOTAL PROFIT
                             </p>
 
                             <div className="flex items-center justify-center lg:justify-start gap-2">
-                                {totalProfit >= 0 ? (
-                                    <TrendingUp
-                                        className="text-primary"
-                                        size={20}
-                                    />
+                                {totalProfitCalculated >= 0 ? (
+                                    <TrendingUp className="text-primary" size={20} />
                                 ) : (
-                                    <TrendingDown
-                                        className="text-accent"
-                                        size={20}
-                                    />
+                                    <TrendingDown className="text-accent" size={20} />
                                 )}
                                 <span
                                     className={`text-lg font-brutal ${
-                                        totalProfit >= 0
+                                        totalProfitCalculated >= 0
                                             ? "text-primary"
                                             : "text-accent"
                                     }`}
                                 >
-                                    {totalProfit >= 0 ? "+" : ""}$
-                                    {totalProfit.toLocaleString()}(
-                                    {totalProfitPercent >= 0 ? "+" : ""}
-                                    {totalProfitPercent.toFixed(2)}%)
+                                    {totalProfitCalculated >= 0 ? "+" : ""}
+                                    {totalProfitCalculated.toLocaleString()} POINTS
                                 </span>
+                            </div>
+
+                            <div className="mt-6 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-mono-brutal text-white">
+                                        TOTAL EARNED
+                                    </span>
+                                    <span className="font-brutal text-primary">
+                                        {formatPoints(player.totalEarned)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-mono-brutal text-white">
+                                        TOTAL SPENT
+                                    </span>
+                                    <span className="font-brutal text-accent">
+                                        {formatPoints(player.totalSpent)}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-mono-brutal text-white">
+                                        CURRENT BALANCE
+                                    </span>
+                                    <span className="font-brutal text-primary">
+                                        {formatPoints(player.tokenBalance)}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </motion.div>
@@ -109,7 +173,7 @@ export function Portfolio() {
                         className="card-brutal mb-6 lg:col-span-8"
                     >
                         <h3 className="text-lg font-brutal text-primary mb-4">
-                            PORTFOLIO GROWTH (7 DAYS)
+                            PROFIT GROWTH (7 DAYS)
                         </h3>
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
@@ -128,168 +192,96 @@ export function Portfolio() {
                                             color: "#FFFFFF",
                                         }}
                                         formatter={(value: number) => [
-                                            `$${value.toLocaleString()}`,
-                                            "Value",
+                                            `${value >= 0 ? "+" : ""}${value.toLocaleString()} PTS`,
+                                            "Profit",
                                         ]}
                                     />
                                     <Line
                                         type="monotone"
                                         dataKey="value"
-                                        stroke="#16A349"
+                                        stroke="#19c27c"
                                         strokeWidth={2}
                                         dot={{
-                                            fill: "#16A349",
+                                            fill: "#19c27c",
                                             strokeWidth: 2,
                                             r: 4,
                                         }}
-                                        activeDot={{ r: 6, fill: "#16A349" }}
+                                        activeDot={{ r: 6, fill: "#19c27c" }}
                                     />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
                     </motion.div>
 
-                    {/* Holdings */}
+                    {/* Market Positions */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="card-brutal lg:col-span-12"
+                        className="card-brutal mb-6 lg:col-span-12"
                     >
                         <h3 className="text-lg font-brutal text-primary mb-4">
-                            YOUR HOLDINGS
+                            MARKET POSITIONS
                         </h3>
 
-                        {portfolio.length > 0 ? (
+                        {marketPositions.length > 0 ? (
                             <div className="space-y-4">
-                                {portfolio.map((holding, index) => {
-                                    const profit =
-                                        (holding.currentPrice -
-                                            holding.buyPrice) *
-                                        holding.quantity;
-                                    const profitPercent =
-                                        ((holding.currentPrice -
-                                            holding.buyPrice) /
-                                            holding.buyPrice) *
-                                        100;
-                                    const currentValue =
-                                        holding.currentPrice * holding.quantity;
-
-                                    return (
+                                {marketPositions.map((item, index) => (
                                         <motion.div
-                                            key={holding.symbol}
+                                        key={item.market.id}
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: index * 0.1 }}
-                                            className={`p-4 border transition-none ${
-                                                profit > 0
-                                                    ? "bg-success/10 border-success"
-                                                    : "bg-danger/10 border-danger"
-                                            }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-primary border-brutal flex items-center justify-center text-lg font-brutal">
-                                                        {holding.logo}
-                                                    </div>
+                                        className="p-4 border bg-card"
+                                    >
+                                        <div className="flex items-center justify-between mb-3">
                                                     <div>
                                                         <h4 className="font-brutal text-primary">
-                                                            {holding.name}
+                                                    {item.market.title}
                                                         </h4>
                                                         <p className="text-sm font-mono-brutal text-white">
-                                                            {holding.symbol}
+                                                    Fee: {item.market.feePercent}% •{" "}
+                                                    {item.market.status}
                                                         </p>
                                                     </div>
-                                                </div>
-
                                                 <div className="text-right">
-                                                    <p className="font-brutal text-lg text-white">
-                                                        {formatPrice(
-                                                            holding.currentPrice
-                                                        )}
-                                                    </p>
-                                                    <div
-                                                        className={`flex items-center gap-1 text-sm font-brutal ${
-                                                            profit >= 0
-                                                                ? "text-success"
-                                                                : "text-danger"
-                                                        }`}
-                                                    >
-                                                        {profit >= 0 ? (
-                                                            <ArrowUp
-                                                                size={14}
-                                                            />
-                                                        ) : (
-                                                            <ArrowDown
-                                                                size={14}
-                                                            />
-                                                        )}
-                                                        {formatChange(
-                                                            profitPercent
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                <p className="font-brutal text-lg text-primary">
+                                                    {formatPoints(item.position)}
+                                                </p>
+                                                <p className="text-xs font-mono-brutal text-white">
+                                                    YOUR POSITION
+                                                </p>
+                                            </div>
                                             </div>
 
-                                            <div className="mt-3 grid grid-cols-3 gap-4 text-sm">
+                                        <div className="grid grid-cols-3 gap-4 text-sm">
                                                 <div>
                                                     <p className="font-mono-brutal text-white">
-                                                        QUANTITY
-                                                    </p>
-                                                    <p className="font-brutal text-primary">
-                                                        {holding.quantity.toFixed(
-                                                            4
-                                                        )}
+                                                    MARKET LIQUIDITY
+                                                </p>
+                                                <p className="font-brutal text-white">
+                                                    {formatPoints(item.market.totalLiquidity)}
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <p className="font-mono-brutal text-white">
-                                                        BUY PRICE
+                                                    PARTICIPANTS
                                                     </p>
                                                     <p className="font-brutal text-white">
-                                                        {formatPrice(
-                                                            holding.buyPrice
-                                                        )}
+                                                    {item.market.totalParticipants}
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <p className="font-mono-brutal text-white">
-                                                        VALUE
-                                                    </p>
-                                                    <p className="font-brutal text-primary">
-                                                        {formatPrice(
-                                                            currentValue
-                                                        )}
-                                                    </p>
-                                                </div>
+                                                    CREATOR
+                                                </p>
+                                                <p className="font-brutal text-white">
+                                                    {item.market.creator.slice(0, 8)}...
+                                                </p>
                                             </div>
-
-                                            <div className="mt-3 pt-3 border-t-brutal">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="font-mono-brutal text-white">
-                                                        P&L
-                                                    </span>
-                                                    <span
-                                                        className={`font-brutal ${
-                                                            profit >= 0
-                                                                ? "text-success"
-                                                                : "text-danger"
-                                                        }`}
-                                                    >
-                                                        {profit >= 0 ? "+" : ""}
-                                                        $
-                                                        {profit.toLocaleString(
-                                                            undefined,
-                                                            {
-                                                                maximumFractionDigits: 2,
-                                                            }
-                                                        )}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
+                                        </div>
+                                    </motion.div>
+                                ))}
                             </div>
                         ) : (
                             <div className="text-center py-12 text-white">
@@ -300,10 +292,143 @@ export function Portfolio() {
                                     />
                                 </div>
                                 <h3 className="text-lg font-brutal mb-2 text-primary">
-                                    NO HOLDINGS YET
+                                    NO MARKET POSITIONS
                                 </h3>
                                 <p className="font-mono-brutal">
-                                    START TRADING TO BUILD YOUR PORTFOLIO!
+                                    START TRADING IN MARKETS TO BUILD YOUR POSITIONS!
+                                </p>
+                            </div>
+                        )}
+                    </motion.div>
+
+                    {/* Price Predictions */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="card-brutal lg:col-span-12"
+                    >
+                        <h3 className="text-lg font-brutal text-primary mb-4">
+                            PRICE PREDICTIONS
+                        </h3>
+
+                        {predictions.length > 0 ? (
+                            <div className="space-y-4">
+                                {/* Active Predictions */}
+                                {activePredictions.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-brutal text-accent mb-3">
+                                            ACTIVE PREDICTIONS
+                                        </h4>
+                                        {activePredictions.map((prediction, index) => {
+                                            const status = getPredictionStatus(prediction);
+                                            const reward = getPredictionReward(prediction.period);
+
+                                            return (
+                                                <motion.div
+                                                    key={index}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: index * 0.1 }}
+                                                    className="p-4 border bg-black mb-3"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            {status.icon}
+                                                            <div>
+                                                                <h4 className="font-brutal text-primary">
+                                                                    {prediction.period} Prediction
+                                                                </h4>
+                                                                <p className="text-sm font-mono-brutal text-white">
+                                                                    Outcome: {prediction.outcome}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className={`font-brutal ${status.color}`}>
+                                                                {status.text}
+                                                            </p>
+                                                            <p className="text-xs font-mono-brutal text-white">
+                                                                Reward: {formatPoints(reward)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Resolved Predictions */}
+                                {resolvedPredictions.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-brutal text-primary mb-3">
+                                            RESOLVED PREDICTIONS
+                                        </h4>
+                                        {resolvedPredictions.map((prediction, index) => {
+                                            const status = getPredictionStatus(prediction);
+                                            const reward = getPredictionReward(prediction.period);
+
+                                            return (
+                                                <motion.div
+                                                    key={index}
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: index * 0.1 }}
+                                                    className={`p-4 border mb-3 ${
+                                                        prediction.correct
+                                                            ? "bg-success/10 border-success"
+                                                            : "bg-danger/10 border-danger"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            {status.icon}
+                                                            <div>
+                                                                <h4 className="font-brutal text-primary">
+                                                                    {prediction.period} Prediction
+                                                                </h4>
+                                                                <p className="text-sm font-mono-brutal text-white">
+                                                                    Outcome: {prediction.outcome}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className={`font-brutal ${status.color}`}>
+                                                                {status.text}
+                                                            </p>
+                                                            <p
+                                                                className={`text-sm font-brutal ${
+                                                                    prediction.correct
+                                                                ? "text-success"
+                                                                : "text-danger"
+                                                        }`}
+                                                    >
+                                                                {prediction.correct
+                                                                    ? `+${formatPoints(reward)}`
+                                                                    : `-${formatPoints(reward)}`}
+                                                            </p>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                })}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-white">
+                                <div className="mb-4 flex justify-center">
+                                    <TrendingUp
+                                        size={64}
+                                        className="text-primary"
+                                    />
+                                </div>
+                                <h3 className="text-lg font-brutal mb-2 text-primary">
+                                    NO PREDICTIONS YET
+                                </h3>
+                                <p className="font-mono-brutal">
+                                    MAKE PRICE PREDICTIONS TO START EARNING REWARDS!
                                 </p>
                             </div>
                         )}
