@@ -20,7 +20,7 @@ interface WalletContextValue {
     error?: string;
 }
 
-const WalletContext = createContext<WalletContextValue | undefined>(undefined);
+export const WalletContext = createContext<WalletContextValue | undefined>(undefined);
 
 export function WalletProvider({ children }: PropsWithChildren) {
     const {

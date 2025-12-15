@@ -33,6 +33,26 @@ import "./index.css";
 import App from "./App.tsx";
 import { AppProviders } from "./providers/AppProviders";
 
+// Suppress expected Linera WASM errors globally before React renders
+if (typeof window !== "undefined") {
+    // Catch WASM panics early before they bubble up
+    const originalConsoleError = console.error;
+    console.error = (...args: any[]) => {
+        const message = args.join(" ");
+        // Suppress expected Linera WASM panic messages
+        if (
+            message.includes("panicked at") &&
+            (message.includes("linera") || message.includes("wasm") || message.includes("Option::unwrap"))
+        ) {
+            // Suppress in production, allow in dev for debugging
+            if (!import.meta.env.DEV) {
+                return;
+            }
+        }
+        originalConsoleError.apply(console, args);
+    };
+}
+
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <AppProviders>

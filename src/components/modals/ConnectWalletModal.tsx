@@ -190,6 +190,11 @@ export function ConnectWalletModal({ forceOpen }: ConnectWalletModalProps) {
                                         <h2 className="font-brutal text-2xl text-primary sm:text-3xl">
                                             Setting Up Your Linera Chain
                                         </h2>
+                                        <p className="text-xs font-mono-brutal text-text-muted">
+                                            This may take 30-60 seconds. The
+                                            client is downloading blockchain
+                                            data...
+                                        </p>
                                         <div className="space-y-4">
                                             <div className="flex items-center gap-3 justify-center">
                                                 <div className="flex-1 bg-black border-brutal p-3 text-left">
@@ -268,7 +273,46 @@ export function ConnectWalletModal({ forceOpen }: ConnectWalletModalProps) {
                                                     </div>
                                                 </div>
                                             </div>
+                                            <div className="flex items-center gap-3 justify-center">
+                                                <div className="flex-1 bg-black border-brutal p-3 text-left">
+                                                    <p className="text-xs font-mono-brutal text-text-muted mb-1">
+                                                        Step 4: Syncing
+                                                        blockchain data
+                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        {isLoading ? (
+                                                            <>
+                                                                <LuLoader className="w-4 h-4 text-primary animate-spin" />
+                                                                <span className="text-sm font-brutal text-primary">
+                                                                    Downloading
+                                                                    blobs...
+                                                                </span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <LuCircleCheck className="w-4 h-4 text-primary" />
+                                                                <span className="text-sm font-brutal text-white">
+                                                                    Complete
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                        {isLoading && (
+                                            <div className="bg-black/50 border border-primary/50 p-3 mt-4">
+                                                <p className="text-xs font-mono-brutal text-text-muted text-center">
+                                                    ⚠️ Background sync is
+                                                    downloading blockchain data.
+                                                    This is normal and may take
+                                                    a minute.
+                                                    <br />
+                                                    The app will be ready once
+                                                    the initial sync completes.
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             )}
@@ -334,14 +378,37 @@ export function ConnectWalletModal({ forceOpen }: ConnectWalletModalProps) {
 
                             {/* Error State */}
                             {error && onboardingStep !== "success" && (
-                                <div className="bg-red-900/20 border border-red-500 p-4">
-                                    <p className="text-xs font-mono-brutal text-red-400">
-                                        {error}
-                                    </p>
+                                <div className="bg-red-900/20 border border-red-500 p-4 space-y-3">
+                                    <div>
+                                        <p className="text-xs font-brutal text-red-400 uppercase mb-2">
+                                            Connection Error
+                                        </p>
+                                        <p className="text-xs font-mono-brutal text-red-400">
+                                            {error}
+                                        </p>
+                                    </div>
+                                    <div className="bg-black/50 border border-red-500/50 p-3 text-left">
+                                        <p className="text-xs font-brutal text-red-300 uppercase mb-1">
+                                            Troubleshooting Tips:
+                                        </p>
+                                        <ul className="text-xs font-mono-brutal text-red-400/80 space-y-1 list-disc list-inside">
+                                            <li>
+                                                Check your internet connection
+                                            </li>
+                                            <li>
+                                                Verify the Linera faucet is
+                                                accessible
+                                            </li>
+                                            <li>Try refreshing the page</li>
+                                            <li>
+                                                Wait a few moments and try again
+                                            </li>
+                                        </ul>
+                                    </div>
                                     <button
                                         type="button"
                                         onClick={handleConnect}
-                                        className="mt-2 text-xs font-brutal text-red-400 underline hover:text-red-300"
+                                        className="w-full border border-red-500 bg-red-900/20 px-4 py-2 text-xs font-brutal text-red-400 uppercase hover:bg-red-900/30 transition"
                                     >
                                         Try Again
                                     </button>

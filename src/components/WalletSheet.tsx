@@ -37,14 +37,63 @@ export default function WalletSheet() {
     const fetchProfile = async () => {
       try {
         const res = await getProfile();
-        if (res && res.result) {
-          const parsed = JSON.parse(res.result);
-          if (parsed.data && parsed.data.profile) {
-            setProfile(parsed.data.profile);
+        if (!res) {
+          console.warn("No response from getProfile");
+          return;
+        }
+
+        // Check if response has error
+        if (res.success === false || res.error) {
+          console.warn("Profile query failed:", res.error || "Unknown error");
+          return;
+        }
+
+        // Handle different response structures
+        let result = res.result || res;
+        
+        // If result is already an object, use it directly
+        if (typeof result === 'object' && result !== null) {
+          if (result.data && result.data.profile) {
+            setProfile(result.data.profile);
+          } else if (result.profile) {
+            setProfile(result.profile);
+          }
+          return;
+        }
+
+        // If result is a string, try to parse it
+        if (typeof result === 'string') {
+          // Skip if empty or whitespace
+          if (!result.trim()) {
+            console.warn("Empty profile response");
+            return;
+          }
+
+          // Check if it looks like JSON
+          const trimmed = result.trim();
+          if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(result);
+              if (parsed.data && parsed.data.profile) {
+                setProfile(parsed.data.profile);
+              } else if (parsed.profile) {
+                setProfile(parsed.profile);
+              } else if (parsed.errors) {
+                console.warn("GraphQL errors in profile response:", parsed.errors);
+              }
+            } catch (parseError) {
+              // Response might be an error message, HTML, or malformed JSON
+              console.warn("Failed to parse profile response as JSON. First 200 chars:", result.substring(0, 200));
+              console.warn("Parse error:", parseError);
+            }
+          } else {
+            // Not JSON, might be an error message or HTML
+            console.warn("Profile response doesn't look like JSON. First 200 chars:", result.substring(0, 200));
           }
         }
       } catch (error) {
         console.error("Failed to fetch profile:", error);
+        // Don't set profile on error - component will handle missing profile gracefully
       }
     };
 

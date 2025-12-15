@@ -1,9 +1,15 @@
 import type { PropsWithChildren } from "react";
-import { useWallet } from "@/context/WalletContext";
+import { useContext } from "react";
+import { WalletContext } from "@/context/WalletContext";
 import { ConnectWalletModal } from "@/components/modals/ConnectWalletModal";
 
 export function AuthGate({ children }: PropsWithChildren) {
-    const { isAuthenticated, isLineraReady } = useWallet();
+    // Safely access wallet context - may be undefined if provider not ready
+    const walletContext = useContext(WalletContext);
+    
+    // Default to not authenticated if context not available
+    const isAuthenticated = walletContext?.isAuthenticated ?? false;
+    const isLineraReady = walletContext?.isLineraReady ?? false;
 
     const allowAccess = isAuthenticated && isLineraReady;
 
