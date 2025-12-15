@@ -22,7 +22,7 @@ const navItems = [
 
 export function Navbar() {
     const location = useLocation();
-    const { address, chainId, isAuthenticated, disconnect } = useWallet();
+    const { chainId, isAuthenticated, disconnect } = useWallet();
 
     // Format Chain ID for display (truncate to show first 8 and last 6 chars)
     const formatChainId = (id?: string) => {

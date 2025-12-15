@@ -69,15 +69,28 @@ export interface Market {
 // ===== Price Prediction System =====
 export type PredictionPeriod = "Daily" | "Weekly" | "Monthly";
 export type PriceOutcome = "Rise" | "Fall" | "Neutral";
+export type Cryptocurrency = "BTC" | "ETH" | "SOL" | "BNB" | "ADA" | "DOT";
+
+export interface CryptocurrencyPrice {
+    symbol: Cryptocurrency;
+    name: string;
+    price: number;
+    change24h: number;
+    logo: string;
+    timestamp: number;
+}
 
 export interface PlayerPrediction {
     playerId: string;
+    cryptocurrency: Cryptocurrency;
     period: PredictionPeriod;
     outcome: PriceOutcome;
     predictionTime: number; // Timestamp
     periodStart: number; // Period start timestamp
     resolved: boolean;
     correct: boolean | null; // null if unresolved
+    stakedAmount: number; // Points staked for this prediction
+    potentialReward: number; // Reward if correct
 }
 
 // ===== Guild System =====
@@ -131,6 +144,7 @@ interface GameState {
     // Markets
     markets: Market[];
     currentMarketPrice: MarketPrice;
+    cryptocurrencyPrices: Record<Cryptocurrency, CryptocurrencyPrice>;
 
     // Predictions
     predictions: PlayerPrediction[];
@@ -173,9 +187,10 @@ interface GameActions {
     sellShares: (marketId: string, amount: number) => void;
 
     // Prediction actions
-    predictDailyOutcome: (outcome: PriceOutcome) => void;
-    predictWeeklyOutcome: (outcome: PriceOutcome) => void;
-    predictMonthlyOutcome: (outcome: PriceOutcome) => void;
+    predictDailyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => void;
+    predictWeeklyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => void;
+    predictMonthlyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => void;
+    setCryptocurrencyPrice: (symbol: Cryptocurrency, price: number, change24h?: number) => void;
 
     // Guild actions
     createGuild: (name: string) => void;
@@ -418,8 +433,58 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     totalProfitPercent: 0,
     markets: mockMarkets,
     currentMarketPrice: {
-        price: 45000, // BTC price in points
+        price: 89156.91, // BTC price in points (real current price)
         timestamp: Date.now(),
+    },
+    cryptocurrencyPrices: {
+        BTC: {
+            symbol: "BTC",
+            name: "Bitcoin",
+            price: 89156.91,
+            change24h: 0.1,
+            logo: "₿",
+            timestamp: Date.now(),
+        },
+        ETH: {
+            symbol: "ETH",
+            name: "Ethereum",
+            price: 3119.99,
+            change24h: 1.1,
+            logo: "Ξ",
+            timestamp: Date.now(),
+        },
+        SOL: {
+            symbol: "SOL",
+            name: "Solana",
+            price: 132.83,
+            change24h: 1.3,
+            logo: "◎",
+            timestamp: Date.now(),
+        },
+        BNB: {
+            symbol: "BNB",
+            name: "Binance Coin",
+            price: 885.03,
+            change24h: 0.6,
+            logo: "BNB",
+            timestamp: Date.now(),
+        },
+        ADA: {
+            symbol: "ADA",
+            name: "Cardano",
+            price: 0.4024,
+            change24h: 0.3,
+            logo: "₳",
+            timestamp: Date.now(),
+        },
+        DOT: {
+            symbol: "DOT",
+            name: "Polkadot",
+            price: 1.99, // Current market price
+            change24h: 2.3,
+            logo: "●",
+            timestamp: Date.now(),
+        },
     },
     predictions: [],
     currentGuild: null,
@@ -658,65 +723,160 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     },
 
     // Prediction actions
-    predictDailyOutcome: (outcome: PriceOutcome) => {
+    predictDailyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
         const state = get();
         const now = Date.now();
         const periodStart = Math.floor(now / (24 * 60 * 60 * 1000)) * (24 * 60 * 60 * 1000);
 
+        // Check if player already has a prediction for this period and crypto
+        const existingPrediction = state.predictions.find(
+            (p) => p.period === "Daily" && p.cryptocurrency === cryptocurrency && !p.resolved && p.periodStart === periodStart
+        );
+
+        if (existingPrediction) {
+            set({ error: `You already have an active Daily prediction for ${cryptocurrency} in this period` });
+            return;
+        }
+
+        // Validate stake amount
+        if (stakeAmount > 0 && state.player.tokenBalance < stakeAmount) {
+            set({ error: "Insufficient balance to stake" });
+            return;
+        }
+
+        // Calculate potential reward (2x for daily, 3x for weekly, 5x for monthly)
+        const potentialReward = stakeAmount > 0 ? stakeAmount * 2 : 100; // Default 100 if no stake
+
         const prediction: PlayerPrediction = {
             playerId: state.player.id,
+            cryptocurrency,
             period: "Daily",
             outcome,
             predictionTime: now,
             periodStart,
             resolved: false,
             correct: null,
+            stakedAmount: stakeAmount,
+            potentialReward,
         };
 
         set((state) => ({
             predictions: [...state.predictions, prediction],
+            player: {
+                ...state.player,
+                tokenBalance: state.player.tokenBalance - stakeAmount,
+                totalSpent: state.player.totalSpent + stakeAmount,
+            },
         }));
     },
 
-    predictWeeklyOutcome: (outcome: PriceOutcome) => {
+    predictWeeklyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
         const state = get();
         const now = Date.now();
         const periodStart =
             Math.floor(now / (7 * 24 * 60 * 60 * 1000)) * (7 * 24 * 60 * 60 * 1000);
 
+        // Check if player already has a prediction for this period and crypto
+        const existingPrediction = state.predictions.find(
+            (p) => p.period === "Weekly" && p.cryptocurrency === cryptocurrency && !p.resolved && p.periodStart === periodStart
+        );
+
+        if (existingPrediction) {
+            set({ error: `You already have an active Weekly prediction for ${cryptocurrency} in this period` });
+            return;
+        }
+
+        // Validate stake amount
+        if (stakeAmount > 0 && state.player.tokenBalance < stakeAmount) {
+            set({ error: "Insufficient balance to stake" });
+            return;
+        }
+
+        // Calculate potential reward (3x for weekly)
+        const potentialReward = stakeAmount > 0 ? stakeAmount * 3 : 500; // Default 500 if no stake
+
         const prediction: PlayerPrediction = {
             playerId: state.player.id,
+            cryptocurrency,
             period: "Weekly",
             outcome,
             predictionTime: now,
             periodStart,
             resolved: false,
             correct: null,
+            stakedAmount: stakeAmount,
+            potentialReward,
         };
 
         set((state) => ({
             predictions: [...state.predictions, prediction],
+            player: {
+                ...state.player,
+                tokenBalance: state.player.tokenBalance - stakeAmount,
+                totalSpent: state.player.totalSpent + stakeAmount,
+            },
         }));
     },
 
-    predictMonthlyOutcome: (outcome: PriceOutcome) => {
+    predictMonthlyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
         const state = get();
         const now = Date.now();
         const periodStart =
             Math.floor(now / (30 * 24 * 60 * 60 * 1000)) * (30 * 24 * 60 * 60 * 1000);
 
+        // Check if player already has a prediction for this period and crypto
+        const existingPrediction = state.predictions.find(
+            (p) => p.period === "Monthly" && p.cryptocurrency === cryptocurrency && !p.resolved && p.periodStart === periodStart
+        );
+
+        if (existingPrediction) {
+            set({ error: `You already have an active Monthly prediction for ${cryptocurrency} in this period` });
+            return;
+        }
+
+        // Validate stake amount
+        if (stakeAmount > 0 && state.player.tokenBalance < stakeAmount) {
+            set({ error: "Insufficient balance to stake" });
+            return;
+        }
+
+        // Calculate potential reward (5x for monthly)
+        const potentialReward = stakeAmount > 0 ? stakeAmount * 5 : 1000; // Default 1000 if no stake
+
         const prediction: PlayerPrediction = {
             playerId: state.player.id,
+            cryptocurrency,
             period: "Monthly",
             outcome,
             predictionTime: now,
             periodStart,
             resolved: false,
             correct: null,
+            stakedAmount: stakeAmount,
+            potentialReward,
         };
 
         set((state) => ({
             predictions: [...state.predictions, prediction],
+            player: {
+                ...state.player,
+                tokenBalance: state.player.tokenBalance - stakeAmount,
+                totalSpent: state.player.totalSpent + stakeAmount,
+            },
+        }));
+    },
+
+    setCryptocurrencyPrice: (symbol: Cryptocurrency, price: number, change24h: number = 0) => {
+        set((state) => ({
+            cryptocurrencyPrices: {
+                ...state.cryptocurrencyPrices,
+                [symbol]: {
+                    ...state.cryptocurrencyPrices[symbol],
+                    price,
+                    change24h,
+                    timestamp: Date.now(),
+                },
+            },
         }));
     },
 

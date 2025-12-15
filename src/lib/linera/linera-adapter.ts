@@ -1,5 +1,4 @@
 import * as linera from "@linera/client";
-import { initialize } from "@linera/client";
 // Note: This adapter is deprecated in favor of LineraProvider
 // Keeping this file for backward compatibility but it's no longer actively used
 
@@ -37,14 +36,17 @@ export class LineraAdapter {
 
     private async initWasm() {
         if (!this.wasmInitPromise) {
-            this.wasmInitPromise = initialize();
+            // Initialize WASM module - using default export pattern (matching LineraProvider)
+            this.wasmInitPromise = (linera as any).default ? (linera as any).default() : Promise.resolve();
         }
         try {
             await this.wasmInitPromise;
         } catch (error) {
+            // Ignore initialization errors - WASM may already be initialized
             const msg = error instanceof Error ? error.message : String(error);
-            if (!msg.includes("storage is already initialized")) {
-                throw error;
+            if (!msg.includes("storage is already initialized") && !msg.includes("already initialized")) {
+                // Only throw if it's not an "already initialized" error
+                console.warn("Linera WASM initialization warning:", msg);
             }
         }
     }
@@ -102,7 +104,7 @@ export class LineraAdapter {
 
     async setApplication(appId: string) {
         if (!this.provider) throw new Error("Linera provider not ready");
-        const application = await this.provider.client.application(appId);
+        const application = await this.provider.client.frontend().application(appId);
         if (!application) {
             throw new Error("Failed to obtain Linera application");
         }

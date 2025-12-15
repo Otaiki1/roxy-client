@@ -1,5 +1,5 @@
 import { useGameStore, getXPForNextLevel } from "@/store/gameStore";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     LuTrendingUp as TrendingUp,
     LuTrendingDown as TrendingDown,
@@ -7,30 +7,26 @@ import {
     LuTrophy as Trophy,
     LuArrowRight as ArrowRight,
     LuGift as Gift,
-    LuCalendar as Calendar,
 } from "react-icons/lu";
 import { Link } from "react-router-dom";
 import logo from "@/assets/roxy-logo.png";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { PricePrediction } from "@/components/PricePrediction";
 
 export function Dashboard() {
     const {
         player,
-        predictions,
         currentMarketPrice,
-        predictDailyOutcome,
-        predictWeeklyOutcome,
-        predictMonthlyOutcome,
         claimDailyReward,
         achievements,
     } = useGameStore();
 
+    const [priceChange, setPriceChange] = useState<number>(0);
+    const [priceChangePercent, setPriceChangePercent] = useState<number>(0);
+    const prevPriceRef = useRef(currentMarketPrice.price);
+
     // Calculate total profit
     const totalProfit = player.totalEarned - player.totalSpent;
-    const [showPredictionModal, setShowPredictionModal] = useState(false);
-    const [predictionPeriod, setPredictionPeriod] = useState<
-        "Daily" | "Weekly" | "Monthly"
-    >("Daily");
 
     // Calculate XP progress for current level
     const xpForNextLevel = getXPForNextLevel(player.experiencePoints);
@@ -46,25 +42,32 @@ export function Dashboard() {
         .map((id) => achievements.find((a) => a.id === id))
         .filter((a): a is NonNullable<typeof a> => a !== undefined);
 
-    // Get active predictions
-    const activePredictions = predictions.filter((p) => !p.resolved);
-
     // Check if daily reward can be claimed (24-hour cooldown)
     const oneDayMs = 24 * 60 * 60 * 1000;
     const lastLogin = player.lastLogin || 0;
     const timeSinceLastLogin = Date.now() - lastLogin;
     const canClaimDailyReward = timeSinceLastLogin >= oneDayMs || lastLogin === 0;
 
-    const handlePredict = (outcome: "Rise" | "Fall" | "Neutral") => {
-        if (predictionPeriod === "Daily") {
-            predictDailyOutcome(outcome);
-        } else if (predictionPeriod === "Weekly") {
-            predictWeeklyOutcome(outcome);
-        } else {
-            predictMonthlyOutcome(outcome);
-        }
-        setShowPredictionModal(false);
-    };
+    // Track price changes for live updates
+    useEffect(() => {
+        const prevPrice = prevPriceRef.current;
+        const currentPrice = currentMarketPrice.price;
+        const change = currentPrice - prevPrice;
+        const changePercent = (change / prevPrice) * 100;
+
+        setPriceChange(change);
+        setPriceChangePercent(changePercent);
+        prevPriceRef.current = currentPrice;
+
+        // Reset animation after 2 seconds
+        const timer = setTimeout(() => {
+            setPriceChange(0);
+            setPriceChangePercent(0);
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [currentMarketPrice.price]);
+
 
     return (
         <div className="min-h-screen bg-black text-white p-4 pb-20 lg:pb-4">
@@ -206,9 +209,33 @@ export function Dashboard() {
                         </span>
                     </div>
                     <div className="text-center">
-                        <p className="text-3xl font-brutal text-primary">
-                            {currentMarketPrice.price.toLocaleString()} PTS
-                        </p>
+                        <div className="flex items-center justify-center gap-2">
+                            <p className="text-3xl font-brutal text-primary">
+                                {currentMarketPrice.price.toLocaleString()} PTS
+                            </p>
+                            <AnimatePresence>
+                                {priceChange !== 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.8 }}
+                                        className={`flex items-center gap-1 ${
+                                            priceChange > 0 ? "text-success" : "text-danger"
+                                        }`}
+                                    >
+                                        {priceChange > 0 ? (
+                                            <TrendingUp size={20} />
+                                        ) : (
+                                            <TrendingDown size={20} />
+                                        )}
+                                        <span className="text-sm font-brutal">
+                                            {priceChange > 0 ? "+" : ""}
+                                            {priceChangePercent.toFixed(2)}%
+                                        </span>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                         <p className="text-sm font-mono-brutal text-white mt-2">
                             Last updated: {new Date(currentMarketPrice.timestamp).toLocaleTimeString()}
                         </p>
@@ -247,65 +274,15 @@ export function Dashboard() {
                     </div>
                 </motion.div>
 
-                {/* Price Predictions */}
+                {/* Price Predictions - Full Section - Very Prominent */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 }}
-                    className="card-brutal lg:col-span-6 border"
+                    transition={{ delay: 0.1 }}
+                    className="lg:col-span-12 mb-6"
                     data-tutorial="predictions"
                 >
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-brutal text-primary flex items-center gap-2">
-                            <Calendar className="text-primary" size={20} />
-                            PRICE PREDICTIONS
-                        </h3>
-                        <button
-                            onClick={() => setShowPredictionModal(true)}
-                            className="text-accent hover:text-primary font-brutal transition-none text-sm"
-                        >
-                            MAKE PREDICTION
-                        </button>
-                    </div>
-
-                    {activePredictions.length > 0 ? (
-                        <div className="space-y-3">
-                            {activePredictions.slice(0, 3).map((prediction, index) => (
-                                <div
-                                    key={index}
-                                    className="bg-black border p-3 flex items-center justify-between"
-                                >
-                                    <div>
-                                        <p className="font-brutal text-primary">
-                                            {prediction.period} Prediction
-                                        </p>
-                                        <p className="text-sm font-mono-brutal text-white">
-                                            {prediction.outcome}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-xs font-mono-brutal text-white">
-                                            {prediction.period === "Daily"
-                                                ? "100 PTS"
-                                                : prediction.period === "Weekly"
-                                                ? "500 PTS"
-                                                : "1000 PTS"}
-                                        </p>
-                                        <p className="text-xs font-mono-brutal text-text-body">
-                                            Reward
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-6 text-white">
-                            <Calendar size={32} className="mx-auto mb-2" />
-                            <p className="font-mono-brutal text-sm">
-                                NO ACTIVE PREDICTIONS
-                            </p>
-                        </div>
-                    )}
+                    <PricePrediction />
                 </motion.div>
 
                 {/* Badges Section */}
@@ -402,79 +379,6 @@ export function Dashboard() {
                 </motion.div>
             </div>
 
-            {/* Prediction Modal */}
-            {showPredictionModal && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-                    onClick={() => setShowPredictionModal(false)}
-                >
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        className="card-brutal w-full max-w-md"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h3 className="text-lg font-brutal text-primary mb-4">
-                            MAKE PRICE PREDICTION
-                        </h3>
-
-                        <div className="mb-4">
-                            <label className="block text-sm font-brutal text-white mb-2">
-                                PERIOD
-                            </label>
-                            <div className="flex gap-2">
-                                {(["Daily", "Weekly", "Monthly"] as const).map((period) => (
-                                    <button
-                                        key={period}
-                                        onClick={() => setPredictionPeriod(period)}
-                                        className={`flex-1 py-2 px-4 border-brutal font-brutal transition-none ${
-                                            predictionPeriod === period
-                                                ? "bg-primary text-black"
-                                                : "bg-black text-white hover:bg-white hover:text-black"
-                                        }`}
-                                    >
-                                        {period}
-                                    </button>
-                                ))}
-                            </div>
-                            <p className="text-xs font-mono-brutal text-white mt-2">
-                                Reward:{" "}
-                                {predictionPeriod === "Daily"
-                                    ? "100 PTS"
-                                    : predictionPeriod === "Weekly"
-                                    ? "500 PTS"
-                                    : "1000 PTS"}
-                            </p>
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-brutal text-white mb-2">
-                                PREDICT OUTCOME
-                            </label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {(["Rise", "Fall", "Neutral"] as const).map((outcome) => (
-                                    <button
-                                        key={outcome}
-                                        onClick={() => handlePredict(outcome)}
-                                        className="py-3 px-4 border-brutal font-brutal bg-black text-white hover:bg-primary hover:text-black transition-none"
-                                    >
-                                        {outcome}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => setShowPredictionModal(false)}
-                            className="w-full py-3 px-4 bg-black text-white border-brutal font-brutal hover:bg-white hover:text-black transition-none"
-                        >
-                            CANCEL
-                        </button>
-                    </motion.div>
-                </motion.div>
-            )}
         </div>
     );
 }

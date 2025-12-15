@@ -6,7 +6,6 @@ export class WalletManager {
   private wasmInstance: typeof linera | null = null;
   private wallet: linera.Wallet | null = null;
   private signer: PrivateKey | null = null;
-  private mnemonic: string | null = null;
 
   setWasmInstance(wasm: typeof linera): void {
     this.wasmInstance = wasm;
@@ -31,7 +30,7 @@ export class WalletManager {
       localStorage.setItem("linera_mnemonic", mnemonic);
     }
     
-    this.mnemonic = mnemonic;
+    // Mnemonic is stored in localStorage, no need to keep in memory
     this.signer = PrivateKey.fromMnemonic(mnemonic);
   }
 
@@ -46,7 +45,7 @@ export class WalletManager {
       throw new Error("No mnemonic found in storage");
     }
 
-    this.mnemonic = mnemonic;
+    // Mnemonic is stored in localStorage, no need to keep in memory
     this.signer = PrivateKey.fromMnemonic(mnemonic);
     
     // Wallet will be created/loaded by the client
@@ -122,14 +121,12 @@ export class WalletManager {
         return await (this.wallet as any).json();
       }
       // Fallback: construct wallet JSON from available data
-      const address = this.signer?.address() || "";
       return JSON.stringify({
         chains: {},
         defaultChain: "",
       });
     } catch (error) {
       // If json() doesn't exist, return minimal wallet structure
-      const address = this.signer?.address() || "";
       return JSON.stringify({
         chains: {},
         defaultChain: "",

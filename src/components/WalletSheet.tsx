@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useWalletStore } from "@/store/wallet";
 import { getProfile } from "@/api/queries";
 import { LuLoader, LuCircleCheck, LuZap } from "react-icons/lu";
@@ -12,7 +12,7 @@ export default function WalletSheet() {
   const checkWalletExist = useWalletStore((s) => s.checkWalletExistAsync);
   const [isCreating, setIsCreating] = useState(false);
   const [profile, setProfile] = useState<any>(null);
-  const [refetch, setRefetch] = useState(0);
+  const [refetch] = useState(0); // Keep for dependency array
 
   // Check wallet existence on mount
   useEffect(() => {

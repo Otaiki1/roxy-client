@@ -9,23 +9,19 @@ export interface Request {
 
 export class ClientManager {
   private client: linera.Client | null = null;
-  private wasmInstance: typeof linera | null = null;
   private wallet: linera.Wallet | null = null;
-  private signer: PrivateKey | null = null;
   public onNotificationCallback?: (data: any) => void;
 
-  setWasmInstance(wasm: typeof linera): void {
-    this.wasmInstance = wasm;
+  setWasmInstance(_wasm: typeof linera): void {
+    // Method kept for interface compatibility
   }
 
   async init(
-    wasm: typeof linera,
+    _wasm: typeof linera,
     wallet: linera.Wallet,
     signer: PrivateKey
   ): Promise<void> {
-    this.wasmInstance = wasm;
     this.wallet = wallet;
-    this.signer = signer;
 
     this.client = await new linera.Client(wallet, signer, false);
     this.registerNotificationHandler();

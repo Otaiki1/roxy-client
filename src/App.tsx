@@ -17,8 +17,13 @@ import {
 import { AuthGate } from "@/components/auth/AuthGate";
 import WalletSheet from "@/components/WalletSheet";
 import { TutorialProvider } from "@/components/tutorial/TutorialProvider";
+import { useMockMode } from "@/hooks/useMockMode";
+import { MockModeIndicator } from "@/components/MockModeIndicator";
 
 function App() {
+    // Initialize mock mode (auto-enables when not authenticated)
+    useMockMode();
+
     const BackgroundComponent = featureFlags.USE_PIXI_BACKGROUND
         ? CanvasBackgroundPIXI
         : CanvasBackground;
@@ -34,6 +39,7 @@ function App() {
     return (
         <Router>
             <div className="min-h-screen bg-background text-text">
+                <MockModeIndicator />
                 <WalletSheet />
                 <Routes>
                     <Route path="/" element={<Landing />} />

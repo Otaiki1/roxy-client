@@ -88,7 +88,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
     try {
       const server = await Server.init(); // returns existing instance, else creates new
       await server.initClient((data) => {
-        set((state) => ({ notification: data }));
+        set(() => ({ notification: data }));
       });
       set({ server, ready: true });
     } catch {
@@ -102,7 +102,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
     if (!server || walletExists) return; // this means the wasm instance is ready, but we don't have a wallet yet.
     try {
       await server.create((data) => {
-        set((state) => ({ notification: data }));
+        set(() => ({ notification: data }));
       }); // this creates a new wallet and starts the client
 
       set({ server, ready: true, walletExists: true });
