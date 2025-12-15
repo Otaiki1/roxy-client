@@ -103,6 +103,7 @@ export function Dashboard() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="card-brutal lg:col-span-8 border"
+                    data-tutorial="total-profit"
                 >
                     <div className="text-center lg:text-left">
                         <h2 className="text-3xl font-brutal text-primary mb-2">
@@ -164,6 +165,7 @@ export function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                     className="card-brutal lg:col-span-4 border"
+                    data-tutorial="experience"
                 >
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-lg font-brutal text-primary">
@@ -219,6 +221,7 @@ export function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
                     className="card-brutal lg:col-span-6 border"
+                    data-tutorial="daily-reward"
                 >
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-brutal text-primary flex items-center gap-2">
@@ -250,6 +253,7 @@ export function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 }}
                     className="card-brutal lg:col-span-6 border"
+                    data-tutorial="predictions"
                 >
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-brutal text-primary flex items-center gap-2">
@@ -390,6 +394,7 @@ export function Dashboard() {
                     <Link
                         to="/app/markets"
                         className="w-full lg:w-auto lg:inline-flex btn-brutal flex items-center justify-center gap-2"
+                        data-tutorial="markets-button"
                     >
                         VIEW MARKETS
                         <ArrowRight size={20} />

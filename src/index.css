@@ -433,3 +433,17 @@ body {
         display: none;
     }
 }
+
+/* Tutorial highlight effect */
+.tutorial-highlight {
+    animation: tutorial-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tutorial-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 var(--color-primary);
+    }
+    50% {
+        box-shadow: 0 0 0 4px var(--color-primary), 0 0 20px var(--color-primary);
+    }
+}

@@ -15,6 +15,8 @@ import {
     GameSoundManager,
 } from "@/components/game";
 import { AuthGate } from "@/components/auth/AuthGate";
+import WalletSheet from "@/components/WalletSheet";
+import { TutorialProvider } from "@/components/tutorial/TutorialProvider";
 
 function App() {
     const BackgroundComponent = featureFlags.USE_PIXI_BACKGROUND
@@ -32,6 +34,7 @@ function App() {
     return (
         <Router>
             <div className="min-h-screen bg-background text-text">
+                <WalletSheet />
                 <Routes>
                     <Route path="/" element={<Landing />} />
                     <Route
@@ -42,31 +45,33 @@ function App() {
                                 {featureFlags.USE_GAME_HUD && <GameHUD />}
                                 <GameSoundManager muted />
                                 <AuthGate>
-                                    <div className={contentWrapperClass}>
-                                        <Routes>
-                                            <Route
-                                                path="/"
-                                                element={<Dashboard />}
-                                            />
-                                            <Route
-                                                path="/markets"
-                                                element={<Markets />}
-                                            />
-                                            <Route
-                                                path="/portfolio"
-                                                element={<Portfolio />}
-                                            />
-                                            <Route
-                                                path="/leaderboard"
-                                                element={<Leaderboard />}
-                                            />
-                                            <Route
-                                                path="/guilds"
-                                                element={<Guilds />}
-                                            />
-                                        </Routes>
-                                    </div>
-                                    <NavigationComponent />
+                                    <TutorialProvider>
+                                        <div className={contentWrapperClass}>
+                                            <Routes>
+                                                <Route
+                                                    path="/"
+                                                    element={<Dashboard />}
+                                                />
+                                                <Route
+                                                    path="/markets"
+                                                    element={<Markets />}
+                                                />
+                                                <Route
+                                                    path="/portfolio"
+                                                    element={<Portfolio />}
+                                                />
+                                                <Route
+                                                    path="/leaderboard"
+                                                    element={<Leaderboard />}
+                                                />
+                                                <Route
+                                                    path="/guilds"
+                                                    element={<Guilds />}
+                                                />
+                                            </Routes>
+                                        </div>
+                                        <NavigationComponent />
+                                    </TutorialProvider>
                                 </AuthGate>
                             </>
                         }

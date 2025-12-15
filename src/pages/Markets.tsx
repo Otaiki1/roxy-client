@@ -145,6 +145,7 @@ export function Markets() {
                                     : "border hover:border-primary"
                             }`}
                                     onClick={() => setSelectedMarket(market.id)}
+                                    data-tutorial={index === 0 ? "market-card" : undefined}
                         >
                             <div className="flex items-center justify-between mb-4">
                                         <div className="flex-1">
@@ -226,7 +227,7 @@ export function Markets() {
                                         )}
                                     </div>
 
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2" data-tutorial={index === 0 ? "buy-sell" : undefined}>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
