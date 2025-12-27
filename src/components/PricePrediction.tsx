@@ -30,7 +30,6 @@ export function PricePrediction() {
         predictMonthlyOutcome,
         error,
         setError,
-        isLoading,
     } = useGameStore();
 
     const [selectedCrypto, setSelectedCrypto] = useState<Cryptocurrency>("BTC");

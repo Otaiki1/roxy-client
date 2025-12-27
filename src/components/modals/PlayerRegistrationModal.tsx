@@ -16,7 +16,7 @@ export function PlayerRegistrationModal({
 }: PlayerRegistrationModalProps) {
     const { walletAddress } = useAuth();
     const queryClient = useQueryClient();
-    const { registerPlayer, isLoading, error, setError } = useGameStore();
+    const { registerPlayer, error, setError } = useGameStore();
     const [displayName, setDisplayName] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 

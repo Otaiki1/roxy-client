@@ -23,10 +23,10 @@ export function Portfolio() {
     const { walletAddress } = useAuth();
     const { player, markets, predictions } = useGameStore();
     
-    // Fetch prediction outcomes from Linera
-    const { data: dailyOutcome } = useDailyOutcome(walletAddress || null);
-    const { data: weeklyOutcome } = useWeeklyOutcome(walletAddress || null);
-    const { data: monthlyOutcome } = useMonthlyOutcome(walletAddress || null);
+    // Fetch prediction outcomes from Linera (unused for now but kept for future use)
+    useDailyOutcome(walletAddress || null);
+    useWeeklyOutcome(walletAddress || null);
+    useMonthlyOutcome(walletAddress || null);
 
     // Calculate total profit
     const totalProfitCalculated = player.totalEarned - player.totalSpent;

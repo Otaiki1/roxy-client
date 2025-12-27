@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { LineraService } from "@/lib/linera/services/LineraService";
-import { amountToPoints } from "@/lib/linera/utils/amount";
 import type { PriceOutcome as LineraPriceOutcome } from "@/lib/linera/types";
 
 // ===== Player & Progression =====
@@ -504,7 +503,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     error: null,
 
     // Player actions (async - call LineraService)
-    registerPlayer: async (displayName: string, playerId?: string) => {
+    registerPlayer: async (displayName: string, _playerId?: string) => {
         set({ isLoading: true, error: null });
         try {
             const service = LineraService.getInstance();
@@ -524,7 +523,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
     },
 
-    updateProfile: async (displayName: string, playerId?: string) => {
+    updateProfile: async (displayName: string, _playerId?: string) => {
         set({ isLoading: true, error: null });
         try {
             const service = LineraService.getInstance();
@@ -544,7 +543,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
     },
 
-    claimDailyReward: async (playerId?: string) => {
+    claimDailyReward: async (_playerId?: string) => {
         set({ isLoading: true, error: null });
         try {
             const service = LineraService.getInstance();
@@ -743,7 +742,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     // Prediction actions (async - call LineraService)
     // Note: cryptocurrency and stakeAmount parameters are kept for API compatibility but ignored
     // The contract only supports BTC predictions and doesn't use staking
-    predictDailyOutcome: async (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
+    predictDailyOutcome: async (_cryptocurrency: Cryptocurrency, outcome: PriceOutcome, _stakeAmount: number = 0) => {
         set({ isLoading: true, error: null });
         try {
             const service = LineraService.getInstance();
@@ -765,7 +764,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
     },
 
-    predictWeeklyOutcome: async (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
+    predictWeeklyOutcome: async (_cryptocurrency: Cryptocurrency, outcome: PriceOutcome, _stakeAmount: number = 0) => {
         set({ isLoading: true, error: null });
         try {
             const service = LineraService.getInstance();
@@ -786,7 +785,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
     },
 
-    predictMonthlyOutcome: async (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
+    predictMonthlyOutcome: async (_cryptocurrency: Cryptocurrency, outcome: PriceOutcome, _stakeAmount: number = 0) => {
         set({ isLoading: true, error: null });
         try {
             const service = LineraService.getInstance();

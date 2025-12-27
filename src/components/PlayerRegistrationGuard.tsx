@@ -22,7 +22,6 @@ export function PlayerRegistrationGuard({
     const {
         data: player,
         isLoading: isLoadingPlayer,
-        isError: isPlayerError,
     } = usePlayer(walletAddress || null);
 
     // Check if player is registered after Linera connection is established
