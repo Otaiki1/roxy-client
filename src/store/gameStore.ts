@@ -1,4 +1,7 @@
 import { create } from "zustand";
+import { LineraService } from "@/lib/linera/services/LineraService";
+import { amountToPoints } from "@/lib/linera/utils/amount";
+import type { PriceOutcome as LineraPriceOutcome } from "@/lib/linera/types";
 
 // ===== Player & Progression =====
 export interface Player {
@@ -174,10 +177,10 @@ interface GameState {
 
 // ===== Game Actions =====
 interface GameActions {
-    // Player actions
-    registerPlayer: (displayName: string) => void;
-    updateProfile: (displayName: string) => void;
-    claimDailyReward: () => void;
+    // Player actions (now async - call LineraService)
+    registerPlayer: (displayName: string, playerId?: string) => Promise<boolean>;
+    updateProfile: (displayName: string, playerId?: string) => Promise<boolean>;
+    claimDailyReward: (playerId?: string) => Promise<boolean>;
     addXP: (points: number) => void;
     addAchievement: (achievementId: string) => void;
 
@@ -186,10 +189,10 @@ interface GameActions {
     buyShares: (marketId: string, amount: number) => void;
     sellShares: (marketId: string, amount: number) => void;
 
-    // Prediction actions
-    predictDailyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => void;
-    predictWeeklyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => void;
-    predictMonthlyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => void;
+    // Prediction actions (now async - call LineraService, cryptocurrency and stakeAmount ignored for now)
+    predictDailyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => Promise<boolean>;
+    predictWeeklyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => Promise<boolean>;
+    predictMonthlyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount?: number) => Promise<boolean>;
     setCryptocurrencyPrice: (symbol: Cryptocurrency, price: number, change24h?: number) => void;
 
     // Guild actions
@@ -500,50 +503,65 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     isLoading: false,
     error: null,
 
-    // Player actions
-    registerPlayer: (displayName: string) => {
-        set({
-                player: {
-                ...initialPlayer,
-                displayName,
-                id: `player-${Date.now()}`,
-                },
-        });
-    },
-
-    updateProfile: (displayName: string) => {
-            set((state) => ({
-                player: {
-                    ...state.player,
-                displayName,
-                },
-            }));
-    },
-
-    claimDailyReward: () => {
-        const state = get();
-        const reward = 10; // Default daily reward
-        const now = Date.now();
-        const oneDayMs = 24 * 60 * 60 * 1000;
-
-        // Check 24-hour cooldown (simplified - should use last_login from contract)
-        // For now, we'll use a simple check - in production, this would come from contract
-        const lastLogin = (state.player as any).lastLogin || 0;
-        const timeSinceLastLogin = now - lastLogin;
-
-        if (timeSinceLastLogin < oneDayMs && lastLogin > 0) {
-            set({ error: "Daily reward already claimed. Wait 24 hours." });
-            return;
+    // Player actions (async - call LineraService)
+    registerPlayer: async (displayName: string, playerId?: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const service = LineraService.getInstance();
+            const success = await service.registerPlayer(displayName);
+            if (success) {
+                set({ isLoading: false });
+                // Note: Components should invalidate queries to refetch player data
+                return true;
+            } else {
+                set({ isLoading: false, error: "Failed to register player" });
+                return false;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to register player";
+            set({ isLoading: false, error: errorMessage });
+            return false;
         }
+    },
 
-        set((state) => ({
-            player: {
-                ...state.player,
-                tokenBalance: state.player.tokenBalance + reward,
-                totalEarned: state.player.totalEarned + reward,
-                lastLogin: now, // Track last login time
-            },
-        }));
+    updateProfile: async (displayName: string, playerId?: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const service = LineraService.getInstance();
+            const success = await service.updateProfile(displayName);
+            if (success) {
+                set({ isLoading: false });
+                // Note: Components should invalidate queries to refetch player data
+                return true;
+            } else {
+                set({ isLoading: false, error: "Failed to update profile" });
+                return false;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
+            set({ isLoading: false, error: errorMessage });
+            return false;
+        }
+    },
+
+    claimDailyReward: async (playerId?: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const service = LineraService.getInstance();
+            const success = await service.claimDailyReward();
+            if (success) {
+                set({ isLoading: false });
+                // Note: Components should invalidate queries to refetch player data
+                return true;
+            } else {
+                set({ isLoading: false, error: "Failed to claim daily reward" });
+                return false;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to claim daily reward";
+            set({ isLoading: false, error: errorMessage });
+            return false;
+        }
     },
 
     addXP: (points: number) => {
@@ -722,148 +740,71 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }));
     },
 
-    // Prediction actions
-    predictDailyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
-        const state = get();
-        const now = Date.now();
-        const periodStart = Math.floor(now / (24 * 60 * 60 * 1000)) * (24 * 60 * 60 * 1000);
-
-        // Check if player already has a prediction for this period and crypto
-        const existingPrediction = state.predictions.find(
-            (p) => p.period === "Daily" && p.cryptocurrency === cryptocurrency && !p.resolved && p.periodStart === periodStart
-        );
-
-        if (existingPrediction) {
-            set({ error: `You already have an active Daily prediction for ${cryptocurrency} in this period` });
-            return;
+    // Prediction actions (async - call LineraService)
+    // Note: cryptocurrency and stakeAmount parameters are kept for API compatibility but ignored
+    // The contract only supports BTC predictions and doesn't use staking
+    predictDailyOutcome: async (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
+        set({ isLoading: true, error: null });
+        try {
+            const service = LineraService.getInstance();
+            // Convert PriceOutcome to Linera PriceOutcome (they should match)
+            const lineraOutcome = outcome as LineraPriceOutcome;
+            const success = await service.predictDailyOutcome(lineraOutcome);
+            if (success) {
+                set({ isLoading: false });
+                // Note: Components should invalidate queries to refetch prediction data
+                return true;
+            } else {
+                set({ isLoading: false, error: "Failed to submit daily prediction" });
+                return false;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to submit daily prediction";
+            set({ isLoading: false, error: errorMessage });
+            return false;
         }
-
-        // Validate stake amount
-        if (stakeAmount > 0 && state.player.tokenBalance < stakeAmount) {
-            set({ error: "Insufficient balance to stake" });
-            return;
-        }
-
-        // Calculate potential reward (2x for daily, 3x for weekly, 5x for monthly)
-        const potentialReward = stakeAmount > 0 ? stakeAmount * 2 : 100; // Default 100 if no stake
-
-        const prediction: PlayerPrediction = {
-            playerId: state.player.id,
-            cryptocurrency,
-            period: "Daily",
-            outcome,
-            predictionTime: now,
-            periodStart,
-            resolved: false,
-            correct: null,
-            stakedAmount: stakeAmount,
-            potentialReward,
-        };
-
-        set((state) => ({
-            predictions: [...state.predictions, prediction],
-            player: {
-                ...state.player,
-                tokenBalance: state.player.tokenBalance - stakeAmount,
-                totalSpent: state.player.totalSpent + stakeAmount,
-            },
-        }));
     },
 
-    predictWeeklyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
-        const state = get();
-        const now = Date.now();
-        const periodStart =
-            Math.floor(now / (7 * 24 * 60 * 60 * 1000)) * (7 * 24 * 60 * 60 * 1000);
-
-        // Check if player already has a prediction for this period and crypto
-        const existingPrediction = state.predictions.find(
-            (p) => p.period === "Weekly" && p.cryptocurrency === cryptocurrency && !p.resolved && p.periodStart === periodStart
-        );
-
-        if (existingPrediction) {
-            set({ error: `You already have an active Weekly prediction for ${cryptocurrency} in this period` });
-            return;
+    predictWeeklyOutcome: async (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
+        set({ isLoading: true, error: null });
+        try {
+            const service = LineraService.getInstance();
+            const lineraOutcome = outcome as LineraPriceOutcome;
+            const success = await service.predictWeeklyOutcome(lineraOutcome);
+            if (success) {
+                set({ isLoading: false });
+                // Note: Components should invalidate queries to refetch prediction data
+                return true;
+            } else {
+                set({ isLoading: false, error: "Failed to submit weekly prediction" });
+                return false;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to submit weekly prediction";
+            set({ isLoading: false, error: errorMessage });
+            return false;
         }
-
-        // Validate stake amount
-        if (stakeAmount > 0 && state.player.tokenBalance < stakeAmount) {
-            set({ error: "Insufficient balance to stake" });
-            return;
-        }
-
-        // Calculate potential reward (3x for weekly)
-        const potentialReward = stakeAmount > 0 ? stakeAmount * 3 : 500; // Default 500 if no stake
-
-        const prediction: PlayerPrediction = {
-            playerId: state.player.id,
-            cryptocurrency,
-            period: "Weekly",
-            outcome,
-            predictionTime: now,
-            periodStart,
-            resolved: false,
-            correct: null,
-            stakedAmount: stakeAmount,
-            potentialReward,
-        };
-
-        set((state) => ({
-            predictions: [...state.predictions, prediction],
-            player: {
-                ...state.player,
-                tokenBalance: state.player.tokenBalance - stakeAmount,
-                totalSpent: state.player.totalSpent + stakeAmount,
-            },
-        }));
     },
 
-    predictMonthlyOutcome: (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
-        const state = get();
-        const now = Date.now();
-        const periodStart =
-            Math.floor(now / (30 * 24 * 60 * 60 * 1000)) * (30 * 24 * 60 * 60 * 1000);
-
-        // Check if player already has a prediction for this period and crypto
-        const existingPrediction = state.predictions.find(
-            (p) => p.period === "Monthly" && p.cryptocurrency === cryptocurrency && !p.resolved && p.periodStart === periodStart
-        );
-
-        if (existingPrediction) {
-            set({ error: `You already have an active Monthly prediction for ${cryptocurrency} in this period` });
-            return;
+    predictMonthlyOutcome: async (cryptocurrency: Cryptocurrency, outcome: PriceOutcome, stakeAmount: number = 0) => {
+        set({ isLoading: true, error: null });
+        try {
+            const service = LineraService.getInstance();
+            const lineraOutcome = outcome as LineraPriceOutcome;
+            const success = await service.predictMonthlyOutcome(lineraOutcome);
+            if (success) {
+                set({ isLoading: false });
+                // Note: Components should invalidate queries to refetch prediction data
+                return true;
+            } else {
+                set({ isLoading: false, error: "Failed to submit monthly prediction" });
+                return false;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to submit monthly prediction";
+            set({ isLoading: false, error: errorMessage });
+            return false;
         }
-
-        // Validate stake amount
-        if (stakeAmount > 0 && state.player.tokenBalance < stakeAmount) {
-            set({ error: "Insufficient balance to stake" });
-            return;
-        }
-
-        // Calculate potential reward (5x for monthly)
-        const potentialReward = stakeAmount > 0 ? stakeAmount * 5 : 1000; // Default 1000 if no stake
-
-        const prediction: PlayerPrediction = {
-            playerId: state.player.id,
-            cryptocurrency,
-            period: "Monthly",
-            outcome,
-            predictionTime: now,
-            periodStart,
-            resolved: false,
-            correct: null,
-            stakedAmount: stakeAmount,
-            potentialReward,
-        };
-
-        set((state) => ({
-            predictions: [...state.predictions, prediction],
-            player: {
-                ...state.player,
-                tokenBalance: state.player.tokenBalance - stakeAmount,
-                totalSpent: state.player.totalSpent + stakeAmount,
-            },
-        }));
     },
 
     setCryptocurrencyPrice: (symbol: Cryptocurrency, price: number, change24h: number = 0) => {

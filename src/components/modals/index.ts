@@ -1,0 +1,2 @@
+export { PlayerRegistrationModal } from "./PlayerRegistrationModal";
+

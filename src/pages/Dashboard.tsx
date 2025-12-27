@@ -12,18 +12,78 @@ import { Link } from "react-router-dom";
 import logo from "@/assets/roxy-logo.png";
 import { useState, useEffect, useRef } from "react";
 import { PricePrediction } from "@/components/PricePrediction";
+import { useAuth } from "@/lib/linera/hooks/useAuth";
+import { usePlayer } from "@/lib/linera/hooks/useLineraQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { amountToPoints } from "@/lib/linera/utils/amount";
 
 export function Dashboard() {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:20',message:'Component render started',data:{hookCount:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    const { walletAddress, isConnectedToLinera } = useAuth();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:23',message:'After useAuth hook',data:{hookCount:1,walletAddress:!!walletAddress,isConnectedToLinera},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    const queryClient = useQueryClient();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:26',message:'After useQueryClient hook',data:{hookCount:2},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    // Fetch player data from Linera
+    const { data: lineraPlayer, isLoading: isLoadingPlayer } = usePlayer(
+        walletAddress || null
+    );
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:32',message:'After usePlayer hook',data:{hookCount:3,isLoadingPlayer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
     const {
-        player,
+        player: storePlayer,
         currentMarketPrice,
         claimDailyReward,
         achievements,
+        isLoading,
     } = useGameStore();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:42',message:'After useGameStore hook',data:{hookCount:4},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    // Use Linera player data if available, otherwise fall back to store (for mock mode)
+    const player = lineraPlayer 
+        ? {
+            id: lineraPlayer.id,
+            displayName: lineraPlayer.displayName || "Player",
+            tokenBalance: amountToPoints(lineraPlayer.tokenBalance),
+            totalEarned: amountToPoints(lineraPlayer.totalEarned),
+            totalSpent: amountToPoints(lineraPlayer.totalSpent),
+            level: lineraPlayer.level,
+            experiencePoints: lineraPlayer.experiencePoints,
+            reputation: lineraPlayer.reputation,
+            marketsParticipated: lineraPlayer.marketsParticipated,
+            marketsWon: lineraPlayer.marketsWon,
+            totalProfit: amountToPoints(lineraPlayer.totalProfit),
+            winStreak: lineraPlayer.winStreak,
+            bestWinStreak: lineraPlayer.bestWinStreak,
+            guildId: lineraPlayer.guildId?.toString() || null,
+            achievementsEarned: [], // TODO: Map from contract if available
+            activeMarkets: [], // TODO: Map from contract if available
+            lastLogin: lineraPlayer.lastLogin ? new Date(lineraPlayer.lastLogin).getTime() : undefined,
+        }
+        : storePlayer;
 
     const [priceChange, setPriceChange] = useState<number>(0);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:65',message:'After useState hook 1',data:{hookCount:5},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     const [priceChangePercent, setPriceChangePercent] = useState<number>(0);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:68',message:'After useState hook 2',data:{hookCount:6},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     const prevPriceRef = useRef(currentMarketPrice.price);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:71',message:'After useRef hook',data:{hookCount:7},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
 
     // Calculate total profit
     const totalProfit = player.totalEarned - player.totalSpent;
@@ -42,14 +102,34 @@ export function Dashboard() {
         .map((id) => achievements.find((a) => a.id === id))
         .filter((a): a is NonNullable<typeof a> => a !== undefined);
 
+    // Handle daily reward claim with query invalidation
+    const handleClaimDailyReward = async () => {
+        if (!walletAddress) return;
+        const success = await claimDailyReward(walletAddress);
+        if (success) {
+            // Invalidate player queries to refetch updated data
+            queryClient.invalidateQueries({ queryKey: ["linera", "player", walletAddress] });
+            queryClient.invalidateQueries({ queryKey: ["linera", "player", walletAddress, "totalPoints"] });
+        }
+    };
+    
     // Check if daily reward can be claimed (24-hour cooldown)
+    // Note: This is a simplified check - the contract handles the actual cooldown
     const oneDayMs = 24 * 60 * 60 * 1000;
     const lastLogin = player.lastLogin || 0;
     const timeSinceLastLogin = Date.now() - lastLogin;
     const canClaimDailyReward = timeSinceLastLogin >= oneDayMs || lastLogin === 0;
-
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:99',message:'Before early return check',data:{isConnectedToLinera,isLoadingPlayer,willReturnEarly:isConnectedToLinera && isLoadingPlayer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     // Track price changes for live updates
+    // MOVED BEFORE EARLY RETURN TO FIX HOOKS VIOLATION
     useEffect(() => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:120',message:'useEffect hook called',data:{hookCount:8,currentPrice:currentMarketPrice.price},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         const prevPrice = prevPriceRef.current;
         const currentPrice = currentMarketPrice.price;
         const change = currentPrice - prevPrice;
@@ -67,7 +147,28 @@ export function Dashboard() {
 
         return () => clearTimeout(timer);
     }, [currentMarketPrice.price]);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:137',message:'After useEffect hook declaration, before early return',data:{hookCount:8,isConnectedToLinera,isLoadingPlayer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    // Show loading state while fetching player data
+    if (isConnectedToLinera && isLoadingPlayer) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:135',message:'Early return executed',data:{isConnectedToLinera,isLoadingPlayer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        return (
+            <div className="min-h-screen bg-black text-white p-4 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="font-mono-brutal">Loading player data...</p>
+                </div>
+            </div>
+        );
+    }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/e58d7062-0d47-477e-9656-193d36c038be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:147',message:'Normal return path',data:{isConnectedToLinera,isLoadingPlayer},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     return (
         <div className="min-h-screen bg-black text-white p-4 pb-20 lg:pb-4">
@@ -261,8 +362,8 @@ export function Dashboard() {
                             Claim 10 points every 24 hours
                         </p>
                         <button
-                            onClick={claimDailyReward}
-                            disabled={!canClaimDailyReward}
+                            onClick={handleClaimDailyReward}
+                            disabled={!canClaimDailyReward || isLoading}
                             className={`btn-brutal ${
                                 !canClaimDailyReward
                                     ? "opacity-50 cursor-not-allowed"

@@ -5,12 +5,10 @@ import {
     LuBriefcase as Briefcase,
     LuTrophy as Trophy,
     LuUsers as Users,
-    LuUser as User,
-    LuLogOut as LogOut,
 } from "react-icons/lu";
 import { cn } from "@/utils/cn";
 import logo from "@/assets/roxy-logo.png";
-import { useWallet } from "@/context/WalletContext";
+import { WalletConnect } from "@/components/wallet/WalletConnect";
 
 const navItems = [
     { path: "/app", icon: Home, label: "Dashboard" },
@@ -22,31 +20,6 @@ const navItems = [
 
 export function Navbar() {
     const location = useLocation();
-    const { chainId, isAuthenticated, disconnect } = useWallet();
-
-    // Format Chain ID for display (truncate to show first 8 and last 6 chars)
-    const formatChainId = (id?: string) => {
-        if (!id) return "Not Connected";
-        if (id.length <= 14) return id;
-        return `${id.slice(0, 8)}...${id.slice(-6)}`;
-    };
-
-    const handleLogout = () => {
-        if (window.confirm("Are you sure you want to disconnect your Linera chain?")) {
-            disconnect();
-        }
-    };
-
-    const handleCopyChainId = async () => {
-        if (chainId) {
-            try {
-                await navigator.clipboard.writeText(chainId);
-                alert("Chain ID copied to clipboard!");
-            } catch (err) {
-                console.error("Failed to copy Chain ID:", err);
-            }
-        }
-    };
 
     return (
         <>
@@ -126,59 +99,9 @@ export function Navbar() {
                         </div>
                     </div>
 
-                    {/* User Info */}
-                    <div className="p-4 border-t-brutal-thick space-y-3">
-                        {isAuthenticated && chainId ? (
-                            <>
-                                <div className="space-y-2">
-                                    <p className="text-xs font-brutal text-primary uppercase">
-                                        Your Linera Chain ID
-                                    </p>
-                                    <div 
-                                        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity p-2 bg-black border-brutal"
-                                        onClick={handleCopyChainId}
-                                        title={`Click to copy full Chain ID: ${chainId}`}
-                                    >
-                                        <div className="w-8 h-8 bg-primary border-brutal flex items-center justify-center text-sm font-brutal">
-                                            <User size={16} className="text-black" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <code className="text-sm font-mono-brutal text-primary block truncate">
-                                                {formatChainId(chainId)}
-                                            </code>
-                                            <p className="text-xs font-mono-brutal text-text-muted">
-                                                Click to copy
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <p className="text-xs font-mono-brutal text-text-muted text-left">
-                                        Your personal Linera microchain is active
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="w-full flex items-center justify-center gap-2 p-2 border-brutal bg-black text-white hover:bg-white hover:text-black transition-none font-brutal text-xs uppercase"
-                                    title="Disconnect Linera Chain"
-                                >
-                                    <LogOut size={14} />
-                                    <span>DISCONNECT</span>
-                                </button>
-                            </>
-                        ) : (
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-gray-800 border-brutal flex items-center justify-center text-sm font-brutal">
-                                    <User size={16} className="text-gray-400" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-brutal text-gray-400">
-                                        NOT CONNECTED
-                                    </p>
-                                    <p className="text-xs font-mono-brutal text-text-muted">
-                                        Connect to Linera to start
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                    {/* User Info / Wallet Connect */}
+                    <div className="p-4 border-t-brutal-thick">
+                        <WalletConnect />
                     </div>
                 </div>
             </nav>

@@ -16,9 +16,17 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
+import { useAuth } from "@/lib/linera/hooks/useAuth";
+import { useDailyOutcome, useWeeklyOutcome, useMonthlyOutcome } from "@/lib/linera/hooks/useLineraQueries";
 
 export function Portfolio() {
+    const { walletAddress } = useAuth();
     const { player, markets, predictions } = useGameStore();
+    
+    // Fetch prediction outcomes from Linera
+    const { data: dailyOutcome } = useDailyOutcome(walletAddress || null);
+    const { data: weeklyOutcome } = useWeeklyOutcome(walletAddress || null);
+    const { data: monthlyOutcome } = useMonthlyOutcome(walletAddress || null);
 
     // Calculate total profit
     const totalProfitCalculated = player.totalEarned - player.totalSpent;

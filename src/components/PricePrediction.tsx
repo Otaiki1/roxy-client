@@ -15,8 +15,12 @@ import {
     type PredictionPeriod,
     type Cryptocurrency,
 } from "@/store/gameStore";
+import { useAuth } from "@/lib/linera/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function PricePrediction() {
+    const { walletAddress } = useAuth();
+    const queryClient = useQueryClient();
     const {
         player,
         predictions,
@@ -26,6 +30,7 @@ export function PricePrediction() {
         predictMonthlyOutcome,
         error,
         setError,
+        isLoading,
     } = useGameStore();
 
     const [selectedCrypto, setSelectedCrypto] = useState<Cryptocurrency>("BTC");
@@ -69,32 +74,47 @@ export function PricePrediction() {
     // Quick stake amounts
     const quickStakes = [100, 500, 1000, 5000];
 
-    const handlePredict = () => {
+    const handlePredict = async () => {
         if (!selectedOutcome) {
             setError("Please select a prediction outcome");
             return;
         }
 
-        const stake = stakeValue || 0;
-
-        if (stake > player.tokenBalance) {
-            setError("Insufficient balance");
+        if (!walletAddress) {
+            setError("Wallet not connected");
             return;
         }
 
+        // Note: stakeAmount is ignored as the contract doesn't use staking
+        const stake = stakeValue || 0;
+
+        let success = false;
         if (selectedPeriod === "Daily") {
-            predictDailyOutcome(selectedCrypto, selectedOutcome, stake);
+            success = await predictDailyOutcome(selectedCrypto, selectedOutcome, stake);
+            if (success) {
+                // Invalidate prediction queries
+                queryClient.invalidateQueries({ queryKey: ["linera", "player", walletAddress, "dailyOutcome"] });
+            }
         } else if (selectedPeriod === "Weekly") {
-            predictWeeklyOutcome(selectedCrypto, selectedOutcome, stake);
+            success = await predictWeeklyOutcome(selectedCrypto, selectedOutcome, stake);
+            if (success) {
+                queryClient.invalidateQueries({ queryKey: ["linera", "player", walletAddress, "weeklyOutcome"] });
+            }
         } else {
-            predictMonthlyOutcome(selectedCrypto, selectedOutcome, stake);
+            success = await predictMonthlyOutcome(selectedCrypto, selectedOutcome, stake);
+            if (success) {
+                queryClient.invalidateQueries({ queryKey: ["linera", "player", walletAddress, "monthlyOutcome"] });
+            }
         }
 
-        // Reset form
-        setStakeAmount("");
-        setSelectedOutcome(null);
-        setShowModal(false);
-        setError(null);
+        if (success) {
+            // Reset form on success
+            setStakeAmount("");
+            setSelectedOutcome(null);
+            setShowModal(false);
+            setError(null);
+        }
+        // Error is set by store action if it fails
     };
 
     const formatPoints = (points: number) => {
