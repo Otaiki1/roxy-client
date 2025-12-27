@@ -7,10 +7,7 @@ import {
 } from "@linera/client";
 import { DynamicSigner } from "./dynamic-signer";
 import { LINERA_RPC_URL } from "../constants";
-import {
-    validateCrossOriginIsolation,
-    getCrossOriginStatus,
-} from "../utils/crossOriginCheck";
+import { getCrossOriginStatus } from "../utils/crossOriginCheck";
 
 export interface QueryResult<T = any> {
     data?: T;
