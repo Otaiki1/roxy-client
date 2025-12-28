@@ -108,7 +108,9 @@ if (typeof MutationObserver === 'undefined') {
 }
 
 // IndexedDB polyfill for Web Workers
-if (typeof indexedDB === 'undefined') {
+// In Web Workers, indexedDB exists but is read-only and throws SecurityError when used
+// Always create polyfill and try to override the read-only property
+{
   // Create a minimal IndexedDB polyfill
   var IDBRequest = function() {
     this.result = null;
@@ -198,9 +200,22 @@ if (typeof indexedDB === 'undefined') {
 
   var indexedDB = new IDBFactory();
   
-  // Also set on self and globalThis for compatibility
+  // Use Object.defineProperty to override read-only indexedDB property
   if (typeof self !== 'undefined') {
-    self.indexedDB = indexedDB;
+    try {
+      Object.defineProperty(self, 'indexedDB', {
+        value: indexedDB,
+        writable: true,
+        configurable: true
+      });
+    } catch (e) {
+      // If we can't override it, try to set it directly (might fail, but that's okay)
+      try {
+        self.indexedDB = indexedDB;
+      } catch (e2) {
+        // Ignore - indexedDB might be read-only
+      }
+    }
     self.IDBRequest = IDBRequest;
     self.IDBOpenDBRequest = IDBOpenDBRequest;
     self.IDBTransaction = IDBTransaction;
@@ -208,7 +223,19 @@ if (typeof indexedDB === 'undefined') {
     self.IDBFactory = IDBFactory;
   }
   if (typeof globalThis !== 'undefined') {
-    globalThis.indexedDB = indexedDB;
+    try {
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: indexedDB,
+        writable: true,
+        configurable: true
+      });
+    } catch (e) {
+      try {
+        globalThis.indexedDB = indexedDB;
+      } catch (e2) {
+        // Ignore
+      }
+    }
     globalThis.IDBRequest = IDBRequest;
     globalThis.IDBOpenDBRequest = IDBOpenDBRequest;
     globalThis.IDBTransaction = IDBTransaction;
